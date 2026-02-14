@@ -87,6 +87,10 @@ const registrationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    ambulanceService: {
+      type: Boolean,
+      default: false,
+    },
 
     Certification: [
       {
@@ -99,6 +103,7 @@ const registrationSchema = new mongoose.Schema(
       {
         name: String,
         price: String,
+        discountPrice: String,
       },
     ],
 

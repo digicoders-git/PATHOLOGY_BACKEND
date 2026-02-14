@@ -10,7 +10,7 @@ const getLocalUrl = (req, file) => {
 
 export const createRegistration = async (req, res) => {
   try {
-    console.log("Incoming Registration Request Body:", req.body);
+    // console.log("Incoming Registration Request Body:", req.body);
     const formData = { ...req.body };
 
     // Handle single files
@@ -40,6 +40,7 @@ export const createRegistration = async (req, res) => {
         formData.test = JSON.parse(formData.pricingItems);
         delete formData.pricingItems;
       }
+      // certifications is handled below if needed, but 'test' (which contains discountPrice) is already parsed above.
 
       // Handle Certification: [{ name, file }]
       // The frontend might send certificationData as a JSON string
@@ -74,7 +75,7 @@ export const createRegistration = async (req, res) => {
     }
 
     // Parse booleans
-    ['homeCollection', 'is24x7', 'emergency', 'status'].forEach(key => {
+    ['homeCollection', 'is24x7', 'emergency', 'status', 'ambulanceService'].forEach(key => {
       if (formData[key] === "true") formData[key] = true;
       if (formData[key] === "false") formData[key] = false;
     });
@@ -408,7 +409,7 @@ export const updateRegistration = async (req, res) => {
     }
 
     // Convert booleans
-    ['homeCollection', 'is24x7', 'emergency', 'status'].forEach(key => {
+    ['homeCollection', 'is24x7', 'emergency', 'status', 'ambulanceService'].forEach(key => {
       if (formData[key] === "true") formData[key] = true;
       if (formData[key] === "false") formData[key] = false;
     });
