@@ -101,7 +101,10 @@ const registrationSchema = new mongoose.Schema(
 
     test: [
       {
-        name: String,
+        name: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "TestService",
+        },
         price: String,
         discountPrice: String,
       },

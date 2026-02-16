@@ -85,7 +85,7 @@ export const createRegistration = async (req, res) => {
       formData.establishmentYear = Number(formData.establishmentYear);
     }
 
-    console.log("Saving Registration with data:", JSON.stringify(formData, null, 2));
+    // console.log("Saving Registration with data:", JSON.stringify(formData, null, 2));
 
     const registration = await Registration.create(formData);
 
@@ -212,6 +212,7 @@ export const getAllRegistrations = async (req, res) => {
       Registration.find(query)
         .populate("selectedTests")
         .populate("parent")
+        .populate("test.name")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -292,7 +293,10 @@ export const getAllRegistrations = async (req, res) => {
 
 export const getRegistrationById = async (req, res) => {
   try {
-    const registration = await Registration.findById(req.params.id).populate("selectedTests");
+    const registration = await Registration.findById(req.params.id)
+      .populate("selectedTests")
+      .populate("parent")
+      .populate("test.name");
     if (!registration) {
       return res.status(404).json({ success: false, message: "Registration not found" });
     }
