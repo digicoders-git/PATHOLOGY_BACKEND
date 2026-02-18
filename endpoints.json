@@ -1,0 +1,251 @@
+[
+  {
+    "category": "Admin",
+    "baseURL": "{{baseUrl}}/admin",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/create",
+        "description": "Create a new admin",
+        "body": {
+          "profilePhoto": "file",
+          "name": "string",
+          "email": "string",
+          "password": "string"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/get",
+        "description": "Get all admins"
+      },
+      {
+        "method": "POST",
+        "path": "/login",
+        "description": "Admin login",
+        "body": {
+          "email": "string",
+          "password": "string"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/get/:id",
+        "description": "Get admin by ID"
+      },
+      {
+        "method": "PUT",
+        "path": "/update/:id",
+        "description": "Update admin by ID",
+        "body": {
+          "profilePhoto": "file",
+          "name": "string",
+          "email": "string"
+        }
+      },
+      {
+        "method": "DELETE",
+        "path": "/delete/:id",
+        "description": "Delete admin"
+      }
+    ]
+  },
+  {
+    "category": "Test Service",
+    "baseURL": "{{baseUrl}}/test-service",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/get",
+        "description": "Get all test services (Public)",
+        "queryParams": [
+          "page",
+          "limit",
+          "search",
+          "status"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/get/:id",
+        "description": "Get test service by ID"
+      },
+      {
+        "method": "POST",
+        "path": "/create",
+        "description": "Create test service (Admin only)",
+        "body": {
+          "title": "string",
+          "status": "boolean"
+        }
+      },
+      {
+        "method": "PUT",
+        "path": "/update/:id",
+        "description": "Update test service (Admin only)",
+        "body": {
+          "title": "string",
+          "status": "boolean"
+        }
+      },
+      {
+        "method": "PATCH",
+        "path": "/status/:id",
+        "description": "Update test service status (Admin only)",
+        "body": {
+          "status": "boolean"
+        }
+      },
+      {
+        "method": "DELETE",
+        "path": "/delete/:id",
+        "description": "Delete test service (Admin only)"
+      }
+    ]
+  },
+  {
+    "category": "Registrations",
+    "baseURL": "{{baseUrl}}/registrations",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/create",
+        "description": "Create a new registration",
+        "body": {
+          "labLogo": "file",
+          "labBanner": "file",
+          "pathologyDocs": "file",
+          "certificationFiles": "file[]",
+          "otherData": "any"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/get",
+        "description": "Get all registrations (Admin only)"
+      },
+      {
+        "method": "GET",
+        "path": "/get/:id",
+        "description": "Get registration by ID (Admin only)"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id",
+        "description": "Update registration (Admin only)",
+        "body": {
+          "labLogo": "file",
+          "labBanner": "file",
+          "pathologyDocs": "file",
+          "certificationFiles": "file[]",
+          "otherData": "any"
+        }
+      },
+      {
+        "method": "PATCH",
+        "path": "/status/:id",
+        "description": "Update registration status (Admin only)",
+        "body": {
+          "status": "string"
+        }
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id",
+        "description": "Delete registration (Admin only)"
+      }
+    ]
+  },
+  {
+    "category": "Parent",
+    "baseURL": "{{baseUrl}}/parent",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/create",
+        "description": "Create a new parent"
+      },
+      {
+        "method": "GET",
+        "path": "/get",
+        "description": "Get all parents"
+      },
+      {
+        "method": "PUT",
+        "path": "/update/:id",
+        "description": "Update parent"
+      },
+      {
+        "method": "DELETE",
+        "path": "/delete/:id",
+        "description": "Delete parent"
+      },
+      {
+        "method": "PATCH",
+        "path": "/status/:id",
+        "description": "Update parent status"
+      }
+    ]
+  },
+  {
+    "category": "Dashboard",
+    "baseURL": "{{baseUrl}}/dashboard",
+    "endpoints": [
+      {
+        "method": "GET",
+        "path": "/stats",
+        "description": "Get dashboard statistics"
+      }
+    ]
+  },
+  {
+    "category": "Manage Package",
+    "baseURL": "{{baseUrl}}/manage-package",
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/create",
+        "description": "Create a new package",
+        "body": {
+          "packageName": "string",
+          "description": "string",
+          "category": "string",
+          "image": "file",
+          "tests": "string[]",
+          "actualPrice": "number",
+          "discountPrice": "number"
+        }
+      },
+      {
+        "method": "GET",
+        "path": "/",
+        "description": "Get all packages",
+        "queryParams": [
+          "search",
+          "status",
+          "testService"
+        ]
+      },
+      {
+        "method": "GET",
+        "path": "/:id",
+        "description": "Get single package details"
+      },
+      {
+        "method": "PUT",
+        "path": "/:id",
+        "description": "Update package details"
+      },
+      {
+        "method": "DELETE",
+        "path": "/:id",
+        "description": "Delete package (Soft delete)"
+      },
+      {
+        "method": "PATCH",
+        "path": "/status/:id",
+        "description": "Toggle package status"
+      }
+    ]
+  }
+]

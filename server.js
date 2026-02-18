@@ -11,6 +11,8 @@ import parentRouter from './routes/parent.routes.js';
 import dashboardRouter from './routes/dashboard.routes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import managePackageRoutes from './routes/admin/managePackage.routes.js';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -39,11 +41,17 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 
 await connectDB();
 
+app.get('/endpoints', (req, res) => {
+  const data = fs.readFileSync(path.join(__dirname, 'endpoints.json'), 'utf8');
+  res.status(200).json(JSON.parse(data));
+});
+
 app.use('/admin', adminRoute)
 app.use('/test-service', testServiceRouter)
 app.use('/registrations', registrationRouter)
 app.use('/parent', parentRouter)
 app.use('/dashboard', dashboardRouter)
+app.use('/manage-package', managePackageRoutes)
 
 // 404 handler
 app.use((req, res) =>

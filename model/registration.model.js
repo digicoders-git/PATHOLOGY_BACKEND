@@ -33,6 +33,9 @@ const registrationSchema = new mongoose.Schema(
     fullAddress: {
       type: String,
     },
+    areaName: {
+      type: String,
+    },
     city: {
       type: String,
     },
