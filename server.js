@@ -1,9 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express'
 import multer from 'multer';
 import connectDB from './config/db.js';
 import helmet from 'helmet';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { adminRoute } from './routes/admin.route.js';
 import testServiceRouter from './routes/testService.routes.js';
 import registrationRouter from './routes/registration.routes.js';
@@ -12,12 +13,14 @@ import dashboardRouter from './routes/dashboard.routes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import managePackageRoutes from './routes/admin/managePackage.routes.js';
+import patientRoutes from './routes/patient/patient.routes.js';
+import pathologyRoutes from './routes/pathology/pathology.routes.js';
+import pathologyTestPricingRoutes from './routes/pathology/pathologyTestPricing.routes.js';
+import labTestPricingRouter from './routes/labTestPricing.routes.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-dotenv.config()
 
 const app = express()
 const port = process.env.PORT || 3000
@@ -52,6 +55,10 @@ app.use('/registrations', registrationRouter)
 app.use('/parent', parentRouter)
 app.use('/dashboard', dashboardRouter)
 app.use('/manage-package', managePackageRoutes)
+app.use('/patient', patientRoutes)
+app.use('/pathology', pathologyRoutes)
+app.use('/pathology-test-pricing', pathologyTestPricingRoutes)
+app.use('/lab-test-pricing', labTestPricingRouter)
 
 // 404 handler
 app.use((req, res) =>

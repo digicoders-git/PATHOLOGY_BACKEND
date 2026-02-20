@@ -1,4 +1,6 @@
 import Registration from "../model/registration.model.js";
+import LabTestPricing from "../model/labTestPricing.model.js";
+import bcrypt from "bcryptjs";
 
 // Helper to get local URL path
 const getLocalUrl = (req, file) => {
@@ -10,6 +12,20 @@ const getLocalUrl = (req, file) => {
 
 export const createRegistration = async (req, res) => {
   try {
+    const { phone, email } = req.body;
+
+    // Check if pathology already exists
+    const existingPathology = await Registration.findOne({
+      $or: [{ phone }, { email }]
+    });
+
+    if (existingPathology) {
+      return res.status(400).json({
+        success: false,
+        message: "Pathology already registered with this phone number or email"
+      });
+    }
+
     // console.log("Incoming Registration Request Body:", req.body);
     const formData = { ...req.body };
 
@@ -85,9 +101,27 @@ export const createRegistration = async (req, res) => {
       formData.establishmentYear = Number(formData.establishmentYear);
     }
 
+    // Hash password if provided
+    if (formData.password) {
+      formData.password = await bcrypt.hash(formData.password, 10);
+    }
+
     // console.log("Saving Registration with data:", JSON.stringify(formData, null, 2));
 
     const registration = await Registration.create(formData);
+
+    // Save test pricing separately
+    if (formData.test && Array.isArray(formData.test)) {
+      const pricingData = formData.test.map(item => ({
+        registration: registration._id,
+        test: item.name,
+        price: item.price,
+        discountPrice: item.discountPrice,
+        addedBy: registration._id,
+      }));
+
+      await LabTestPricing.insertMany(pricingData);
+    }
 
     res.status(201).json({
       success: true,
@@ -212,7 +246,6 @@ export const getAllRegistrations = async (req, res) => {
       Registration.find(query)
         .populate("selectedTests")
         .populate("parent")
-        .populate("test.name")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
@@ -295,12 +328,23 @@ export const getRegistrationById = async (req, res) => {
   try {
     const registration = await Registration.findById(req.params.id)
       .populate("selectedTests")
-      .populate("parent")
-      .populate("test.name");
+      .populate("parent");
+
     if (!registration) {
       return res.status(404).json({ success: false, message: "Registration not found" });
     }
-    res.status(200).json({ success: true, data: registration });
+
+    const tests = await LabTestPricing.find({
+      registration: req.params.id,
+    }).populate("test");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        ...registration.toObject(),
+        testPricing: tests,
+      },
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -356,6 +400,24 @@ export const updateRegistration = async (req, res) => {
     const { id } = req.params;
     const formData = { ...req.body };
 
+    // Check if phone or email already exists for another pathology
+    if (formData.phone || formData.email) {
+      const existingPathology = await Registration.findOne({
+        _id: { $ne: id },
+        $or: [
+          ...(formData.phone ? [{ phone: formData.phone }] : []),
+          ...(formData.email ? [{ email: formData.email }] : [])
+        ]
+      });
+
+      if (existingPathology) {
+        return res.status(400).json({
+          success: false,
+          message: "Another pathology is already registered with this phone number or email"
+        });
+      }
+    }
+
     // Handle empty parent
     if (formData.parent === "" || formData.parent === "null") {
       formData.parent = null;
@@ -408,6 +470,11 @@ export const updateRegistration = async (req, res) => {
           }
         });
       }
+
+      // Hash password if updating
+      if (formData.password) {
+        formData.password = await bcrypt.hash(formData.password, 10);
+      }
     } catch (e) {
       console.error("Parse error in update:", e);
     }
@@ -422,6 +489,21 @@ export const updateRegistration = async (req, res) => {
 
     if (!updated) {
       return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    // Update test pricing separately
+    if (formData.test) {
+      await LabTestPricing.deleteMany({ registration: id });
+
+      const pricingData = formData.test.map(item => ({
+        registration: id,
+        test: item.name,
+        price: item.price,
+        discountPrice: item.discountPrice,
+        addedBy: id,
+      }));
+
+      await LabTestPricing.insertMany(pricingData);
     }
 
     res.status(200).json({

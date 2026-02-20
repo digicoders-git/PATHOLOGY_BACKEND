@@ -50,10 +50,15 @@ const registrationSchema = new mongoose.Schema(
     phone: {
       type: String,
       required: true,
+      unique: true,
     },
     email: {
       type: String,
       required: true,
+      unique: true,
+    },
+    password: {
+      type: String,
     },
     whatsapp: {
       type: String,
@@ -99,17 +104,6 @@ const registrationSchema = new mongoose.Schema(
       {
         name: String,
         file: String,
-      },
-    ],
-
-    test: [
-      {
-        name: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "TestService",
-        },
-        price: String,
-        discountPrice: String,
       },
     ],
 
