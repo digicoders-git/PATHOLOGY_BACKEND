@@ -12,6 +12,7 @@ const storage = multer.diskStorage({
     else if (file.fieldname === "certificationFiles") folder += "registrations/certifications";
     else if (file.fieldname === "pathologyDocs") folder += "registrations/docs";
     else if (file.fieldname === "profilePhoto") folder += "profiles";
+    else if (file.fieldname === "testReport") folder += "reports";
     else folder += "misc";
 
     // Create directory if it doesn't exist

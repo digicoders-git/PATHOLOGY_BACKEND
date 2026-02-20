@@ -196,21 +196,25 @@ export const getProfile = async (req, res) => {
 
 export const getAllTestPricingForPatient = async (req, res) => {
   try {
-    const { search, minPrice, maxPrice, labId } = req.query;
+    const { search, price, discountPrice, labId, id } = req.query;
 
     let query = {
       status: true,
       isDeleted: false,
     };
 
+    if (id) {
+      query._id = id;
+    }
+
     if (labId) {
       query.registration = labId;
     }
 
-    if (minPrice || maxPrice) {
+    if (price || discountPrice) {
       query.$and = query.$and || [];
-      if (minPrice) query.$and.push({ price: { $gte: minPrice } });
-      if (maxPrice) query.$and.push({ price: { $lte: maxPrice } });
+      if (price) query.$and.push({ price: { $gte: price } });
+      if (discountPrice) query.$and.push({ discountPrice: { $lte: discountPrice } });
     }
 
     // Search by test title or lab name
