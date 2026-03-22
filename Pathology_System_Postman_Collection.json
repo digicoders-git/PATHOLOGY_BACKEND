@@ -1,0 +1,781 @@
+{
+	"info": {
+		"_postman_id": "pathology-api-collection",
+		"name": "Pathology System API",
+		"description": "Comprehensive API collection for Pathology System including Admin, Patient, and Pathology Lab features.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Admin",
+			"item": [
+				{
+					"name": "Create Admin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "name", "value": "Admin Name", "type": "text" },
+								{ "key": "email", "value": "admin@example.com", "type": "text" },
+								{ "key": "password", "value": "password123", "type": "text" },
+								{ "key": "profilePhoto", "type": "file", "src": "" }
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "create"]
+						}
+					}
+				},
+				{
+					"name": "Admin Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"password123\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "login"]
+						}
+					}
+				},
+				{
+					"name": "Get All Admins",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/admin/get",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "get"]
+						}
+					}
+				},
+				{
+					"name": "Get Admin By ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/admin/get/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "get", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				},
+				{
+					"name": "Update Admin",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "name", "value": "Updated Name", "type": "text" },
+								{ "key": "email", "value": "updated@example.com", "type": "text" },
+								{ "key": "profilePhoto", "type": "file", "src": "" }
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/admin/update/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "update", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				},
+				{
+					"name": "Delete Admin",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/admin/delete/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["admin", "delete", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Patient",
+			"item": [
+				{
+					"name": "Auth",
+					"item": [
+						{
+							"name": "Send OTP",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"mobile\": \"9876543210\"\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/patient/send-otp",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "send-otp"]
+								}
+							}
+						},
+						{
+							"name": "Verify OTP",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"mobile\": \"9876543210\",\n    \"otp\": \"1234\"\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/patient/verify-otp",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "verify-otp"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Profile",
+					"item": [
+						{
+							"name": "Get Profile",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{patientToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/patient/profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "profile"]
+								}
+							}
+						},
+						{
+							"name": "Update Profile",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{patientToken}}", "type": "text" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "name", "value": "Full Name", "type": "text" },
+										{ "key": "email", "value": "patient@example.com", "type": "text" },
+										{ "key": "age", "value": "25", "type": "text" },
+										{ "key": "gender", "value": "Male", "type": "text" },
+										{ "key": "address", "value": "Address details", "type": "text" },
+										{ "key": "profilePhoto", "type": "file", "src": "" }
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/patient/update-profile",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "update-profile"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Booking",
+					"item": [
+						{
+							"name": "Get All Tests",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/patient/all-tests?search=&labId=",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "all-tests"],
+									"query": [
+										{ "key": "search", "value": "" },
+										{ "key": "labId", "value": "" }
+									]
+								}
+							}
+						},
+						{
+							"name": "Get Available Slots",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseUrl}}/patient/slots?labId=&date=2023-10-27",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "slots"],
+									"query": [
+										{ "key": "labId", "value": "" },
+										{ "key": "date", "value": "2023-10-27" }
+									]
+								}
+							}
+						},
+						{
+							"name": "Book Test",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{patientToken}}", "type": "text" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"labTestPricingId\": \"\",\n    \"slotId\": \"\",\n    \"paymentMode\": \"Cash on Collection\"\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/patient/book-test",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "book-test"]
+								}
+							}
+						},
+						{
+							"name": "My Bookings",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{patientToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/patient/my-bookings",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "my-bookings"]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Admin Only (Patients)",
+					"item": [
+						{
+							"name": "Get All Patients",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/patient/all-patients?search=",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "all-patients"],
+									"query": [ { "key": "search", "value": "" } ]
+								}
+							}
+						},
+						{
+							"name": "Update Patient Status",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/patient/update-status/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["patient", "update-status", ":id"],
+									"variable": [ { "key": "id", "value": "" } ]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Pathology (Lab Owner)",
+			"item": [
+				{
+					"name": "Pathology Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"lab@example.com\",\n    \"password\": \"password123\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/pathology/login",
+							"host": ["{{baseUrl}}"],
+							"path": ["pathology", "login"]
+						}
+					}
+				},
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/pathology/profile",
+							"host": ["{{baseUrl}}"],
+							"path": ["pathology", "profile"]
+						}
+					}
+				},
+				{
+					"name": "Slot Management",
+					"item": [
+						{
+							"name": "Generate Slots",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"date\": \"2023-10-27\",\n    \"startTime\": \"09:00\",\n    \"endTime\": \"18:00\",\n    \"interval\": 30\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/pathology/generate-slots",
+									"host": ["{{baseUrl}}"],
+									"path": ["pathology", "generate-slots"]
+								}
+							}
+						},
+						{
+							"name": "Get Slots",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/pathology/get-slots?date=2023-10-27",
+									"host": ["{{baseUrl}}"],
+									"path": ["pathology", "get-slots"],
+									"query": [ { "key": "date", "value": "2023-10-27" } ]
+								}
+							}
+						},
+						{
+							"name": "Delete Slot",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/pathology/delete-slot/:id",
+									"host": ["{{baseUrl}}"],
+									"path": ["pathology", "delete-slot", ":id"],
+									"variable": [ { "key": "id", "value": "" } ]
+								}
+							}
+						}
+					]
+				},
+				{
+					"name": "Booking Management",
+					"item": [
+						{
+							"name": "My Lab Bookings",
+							"request": {
+								"method": "GET",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+								],
+								"url": {
+									"raw": "{{baseUrl}}/pathology/my-bookings",
+									"host": ["{{baseUrl}}"],
+									"path": ["pathology", "my-bookings"]
+								}
+							}
+						},
+						{
+							"name": "Update Booking Status",
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"status\": \"Completed\"\n}",
+									"options": { "raw": { "language": "json" } }
+								},
+								"url": {
+									"raw": "{{baseUrl}}/pathology/update-booking-status/:bookingId",
+									"host": ["{{baseUrl}}"],
+									"path": ["pathology", "update-booking-status", ":bookingId"],
+									"variable": [ { "key": "bookingId", "value": "" } ]
+								}
+							}
+						},
+						{
+							"name": "Upload Test Report",
+							"request": {
+								"method": "POST",
+								"header": [
+									{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+								],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{ "key": "testReport", "type": "file", "src": "" }
+									]
+								},
+								"url": {
+									"raw": "{{baseUrl}}/pathology/upload-report/:bookingId",
+									"host": ["{{baseUrl}}"],
+									"path": ["pathology", "upload-report", ":bookingId"],
+									"variable": [ { "key": "bookingId", "value": "" } ]
+								}
+							}
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Test Service",
+			"item": [
+				{
+					"name": "Get All Services",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/test-service/get",
+							"host": ["{{baseUrl}}"],
+							"path": ["test-service", "get"]
+						}
+					}
+				},
+				{
+					"name": "Create Service",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Blood Test\",\n    \"status\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/test-service/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["test-service", "create"]
+						}
+					}
+				},
+				{
+					"name": "Update Service",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"title\": \"Updated Test\",\n    \"status\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/test-service/update/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["test-service", "update", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				},
+				{
+					"name": "Delete Service",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/test-service/delete/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["test-service", "delete", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Manage Packages",
+			"item": [
+				{
+					"name": "Create Package",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "packageName", "value": "Health Checkup", "type": "text" },
+								{ "key": "description", "value": "Complete body checkup", "type": "text" },
+								{ "key": "category", "value": "Health", "type": "text" },
+								{ "key": "tests", "value": "[\"testId1\", \"testId2\"]", "type": "text" },
+								{ "key": "actualPrice", "value": "1000", "type": "text" },
+								{ "key": "discountPrice", "value": "800", "type": "text" },
+								{ "key": "image", "type": "file", "src": "" }
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/manage-package/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["manage-package", "create"]
+						}
+					}
+				},
+				{
+					"name": "Get All Packages",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/manage-package/",
+							"host": ["{{baseUrl}}"],
+							"path": ["manage-package", ""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Pathology Test Pricing",
+			"item": [
+				{
+					"name": "Add Pricing",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"testId\": \"\",\n    \"price\": 500,\n    \"discountPrice\": 400\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/pathology-test-pricing/add-pricing",
+							"host": ["{{baseUrl}}"],
+							"path": ["pathology-test-pricing", "add-pricing"]
+						}
+					}
+				},
+				{
+					"name": "Get My Pricing",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{pathologyToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/pathology-test-pricing/get-my-pricing",
+							"host": ["{{baseUrl}}"],
+							"path": ["pathology-test-pricing", "get-my-pricing"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Lab Test Pricing (Admin)",
+			"item": [
+				{
+					"name": "Get All Lab Pricings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/lab-test-pricing/get",
+							"host": ["{{baseUrl}}"],
+							"path": ["lab-test-pricing", "get"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Registrations (Management)",
+			"item": [
+				{
+					"name": "Create Registration",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "labName", "value": "Central Lab", "type": "text" },
+								{ "key": "email", "value": "lab@example.com", "type": "text" },
+								{ "key": "password", "value": "password123", "type": "text" },
+								{ "key": "phone", "value": "9876543210", "type": "text" },
+								{ "key": "ownerName", "value": "John Doe", "type": "text" },
+								{ "key": "labLogo", "type": "file", "src": "" },
+								{ "key": "labBanner", "type": "file", "src": "" },
+								{ "key": "pathologyDocs", "type": "file", "src": "" }
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/registrations/create",
+							"host": ["{{baseUrl}}"],
+							"path": ["registrations", "create"]
+						}
+					}
+				},
+				{
+					"name": "Get All Registrations",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/registrations/get?page=1&limit=10&search=&status=",
+							"host": ["{{baseUrl}}"],
+							"path": ["registrations", "get"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" },
+								{ "key": "search", "value": "" },
+								{ "key": "status", "value": "" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Registration By ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/registrations/get/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["registrations", "get", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				},
+				{
+					"name": "Update Registration",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{ "key": "labName", "value": "Updated Lab Name", "type": "text" },
+								{ "key": "phone", "value": "9876543211", "type": "text" }
+							]
+						},
+						"url": {
+							"raw": "{{baseUrl}}/registrations/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["registrations", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				},
+				{
+					"name": "Update Status",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"status\": true\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{baseUrl}}/registrations/status/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["registrations", "status", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				},
+				{
+					"name": "Delete Registration",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/registrations/:id",
+							"host": ["{{baseUrl}}"],
+							"path": ["registrations", ":id"],
+							"variable": [ { "key": "id", "value": "" } ]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Dashboard",
+			"item": [
+				{
+					"name": "Get Stats",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}", "type": "text" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/dashboard/stats",
+							"host": ["{{baseUrl}}"],
+							"path": ["dashboard", "stats"]
+						}
+					}
+				}
+			]
+		}
+	],
+	"variable": [
+		{ "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+		{ "key": "adminToken", "value": "", "type": "string" },
+		{ "key": "patientToken", "value": "", "type": "string" },
+		{ "key": "pathologyToken", "value": "", "type": "string" }
+	]
+}

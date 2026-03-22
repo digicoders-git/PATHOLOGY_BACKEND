@@ -5,18 +5,32 @@ export const uploadOnCloudinary = async (localFilePath) => {
   try {
     if (!localFilePath) return null;
 
-    // Upload the file on cloudinary
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
       folder: "pathology/packages"
     });
 
-    // File has been uploaded successfully
-    fs.unlinkSync(localFilePath); // Remove the locally saved temporary file
+    fs.unlinkSync(localFilePath); 
     return response.url;
   } catch (error) {
-    fs.unlinkSync(localFilePath); // Remove the locally saved temporary file as the upload operation failed
+    if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath);
     console.error("CLOUDINARY_UPLOAD_ERROR:", error);
+    return null;
+  }
+};
+
+export const uploadAndKeepLocal = async (localFilePath, folder = "pathology/general") => {
+  try {
+    if (!localFilePath) return null;
+
+    const response = await cloudinary.uploader.upload(localFilePath, {
+      resource_type: "auto",
+      folder: folder
+    });
+
+    return response.secure_url;
+  } catch (error) {
+    console.error("CLOUDINARY_DUAL_UPLOAD_ERROR:", error);
     return null;
   }
 };

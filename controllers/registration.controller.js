@@ -1,6 +1,10 @@
 import Registration from "../model/registration.model.js";
 import LabTestPricing from "../model/labTestPricing.model.js";
 import bcrypt from "bcryptjs";
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const XLSX = require('xlsx');
+import fs from "fs";
 
 // Helper to get local URL path
 const getLocalUrl = (req, file) => {
@@ -517,5 +521,138 @@ export const updateRegistration = async (req, res) => {
       success: false,
       message: error.message || "Failed to update registration",
     });
+  }
+};
+
+export const importRegistrationsExcel = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "Please upload an excel file" });
+    }
+
+    const workbook = XLSX.readFile(req.file.path);
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    if (data.length === 0) {
+       fs.unlinkSync(req.file.path);
+       return res.status(400).json({ success: false, message: "Excel file is empty" });
+    }
+
+    const results = {
+      imported: 0,
+      errors: []
+    };
+
+    for (const row of data) {
+      try {
+        // Validation: Required fields
+        if (!row.phone || !row.email || !row.labName || !row.ownerName) {
+           results.errors.push(`Row ${data.indexOf(row) + 2}: Required fields missing (phone, email, labName, ownerName)`);
+           continue;
+        }
+
+        // Check duplicates
+        const existing = await Registration.findOne({
+          $or: [{ phone: row.phone.toString() }, { email: row.email.toString() }]
+        });
+
+        if (existing) {
+          results.errors.push(`Row ${data.indexOf(row) + 2}: Lab with phone ${row.phone} or email ${row.email} already exists`);
+          continue;
+        }
+
+        // Default password if not provided
+        const password = row.password ? row.password.toString() : "Lab@123";
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newLab = new Registration({
+          ...row,
+          password: hashedPassword,
+          source: "admin",
+          status: true
+        });
+
+        await newLab.save();
+        results.imported++;
+      } catch (err) {
+        results.errors.push(`Row ${data.indexOf(row) + 2}: ${err.message}`);
+      }
+    }
+
+    // Delete temp file after processing
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Import completed: ${results.imported} registrations successfully imported`,
+      data: results
+    });
+
+  } catch (error) {
+    console.error("EXCEL_IMPORT_ERROR:", error);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ success: false, message: "Import failed: " + error.message });
+  }
+};
+
+export const bulkCreateRegistrations = async (req, res) => {
+  try {
+    const { labs } = req.body;
+    if (!labs || !Array.isArray(labs) || labs.length === 0) {
+      return res.status(400).json({ success: false, message: "No lab data provided" });
+    }
+
+    const results = {
+      imported: 0,
+      errors: []
+    };
+
+    for (const row of labs) {
+      try {
+        if (!row.phone || !row.email || !row.labName || !row.ownerName) {
+           results.errors.push(`Lab "${row.labName || 'Unknown'}": Required fields missing`);
+           continue;
+        }
+
+        const existing = await Registration.findOne({
+          $or: [{ phone: row.phone.toString() }, { email: row.email.toString() }]
+        });
+
+        if (existing) {
+          results.errors.push(`Lab "${row.labName}": Already exists with phone/email`);
+          continue;
+        }
+
+        const password = row.password ? row.password.toString() : "Lab@123";
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newLab = new Registration({
+          ...row,
+          password: hashedPassword,
+          source: "admin",
+          status: true
+        });
+
+        await newLab.save();
+        results.imported++;
+      } catch (err) {
+        results.errors.push(`Lab "${row.labName}": ${err.message}`);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully imported ${results.imported} labs`,
+      data: results
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Bulk import failed: " + error.message });
   }
 };

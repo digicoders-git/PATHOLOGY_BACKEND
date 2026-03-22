@@ -6,6 +6,8 @@ import {
   updateRegistrationStatus,
   updateRegistration,
   deleteRegistration,
+  importRegistrationsExcel,
+  bulkCreateRegistrations,
 } from "../controllers/registration.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import upload from "../middleware/multer.js";
@@ -26,6 +28,8 @@ router.post("/create", cpUpload, createRegistration);
 // Protected routes for dashboard
 router.get("/get", verifyAdminToken, getAllRegistrations);
 router.get("/get/:id", verifyAdminToken, getRegistrationById);
+router.post("/import-excel", verifyAdminToken, upload.single("excelFile"), importRegistrationsExcel);
+router.post("/bulk-create", verifyAdminToken, bulkCreateRegistrations);
 router.put("/:id", verifyAdminToken, cpUpload, updateRegistration);
 router.patch("/status/:id", verifyAdminToken, updateRegistrationStatus);
 router.delete("/:id", verifyAdminToken, deleteRegistration);

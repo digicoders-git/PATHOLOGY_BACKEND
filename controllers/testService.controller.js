@@ -1,12 +1,61 @@
 import TestService from "../model/testService.model.js";
+import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 
 export const createTestService = async (req, res) => {
   try {
-    const { title, status } = req.body;
+    const { 
+      title, 
+      status, 
+      category_id, 
+      fasting_required, 
+      fasting_hours, 
+      instruction_text, 
+      sample_type, 
+      report_time, 
+      instructions,
+      mrp,
+      price,
+      test_code
+    } = req.body;
+
     if (!title) {
       return res.status(400).json({ success: false, message: "Title is required" });
     }
-    const newService = await TestService.create({ title, status });
+
+    let inputInstructions = instructions;
+    if (typeof instructions === 'string' && instructions !== "") {
+      try {
+        inputInstructions = JSON.parse(instructions);
+      } catch (_) {
+        inputInstructions = [];
+      }
+    }
+
+    let imageData = { local: "", cloudinary: "" };
+    if (req.file) {
+      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
+      imageData = {
+        local: req.file.path.replace(/\\/g, '/'),
+        cloudinary: cloudinaryUrl || ""
+      };
+    }
+
+    const newService = await TestService.create({ 
+      title, 
+      status: status !== undefined ? status : true, 
+      category_id: category_id || null, 
+      fasting_required: fasting_required || false, 
+      fasting_hours: fasting_hours || 0, 
+      instruction_text: instruction_text || "", 
+      sample_type: sample_type || "", 
+      report_time: report_time || "", 
+      instructions: inputInstructions || [],
+      mrp: mrp || 0,
+      price: price || 0,
+      test_code: test_code || "",
+      image: imageData
+    });
+
     res.status(201).json({ success: true, message: "Test Service created successfully", data: newService });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -15,7 +64,7 @@ export const createTestService = async (req, res) => {
 
 export const getAllTestServices = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", status } = req.query;
+    const { page = 1, limit = 10, search = "", status, category_id } = req.query;
 
     const query = {};
 
@@ -27,9 +76,14 @@ export const getAllTestServices = async (req, res) => {
       query.status = status === "true" || status === true;
     }
 
+    if (category_id) {
+      query.category_id = category_id;
+    }
+
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await TestService.countDocuments(query);
     const services = await TestService.find(query)
+      .populate('category_id')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -52,7 +106,8 @@ export const getAllTestServices = async (req, res) => {
 
 export const getTestServiceById = async (req, res) => {
   try {
-    const service = await TestService.findById(req.params.id);
+    const service = await TestService.findById(req.params.id)
+      .populate('category_id');
     if (!service) {
       return res.status(404).json({ success: false, message: "Test Service not found" });
     }
@@ -64,10 +119,31 @@ export const getTestServiceById = async (req, res) => {
 
 export const updateTestService = async (req, res) => {
   try {
-    const { title, status } = req.body;
+    let updateData = { ...req.body };
+    
+    // Parse JSON strings if they come from FormData
+    if (typeof updateData.instructions === 'string' && updateData.instructions !== "") {
+      try {
+        updateData.instructions = JSON.parse(updateData.instructions);
+      } catch (_) {
+        updateData.instructions = [];
+      }
+    }
+
+    if (updateData.category_id === "" || updateData.category_id === "null") updateData.category_id = null;
+    delete updateData.subcategory_id;
+
+    if (req.file) {
+      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
+      updateData.image = {
+        local: req.file.path.replace(/\\/g, '/'),
+        cloudinary: cloudinaryUrl || ""
+      };
+    }
+
     const service = await TestService.findByIdAndUpdate(
       req.params.id,
-      { title, status },
+      updateData,
       { new: true, runValidators: true }
     );
     if (!service) {
@@ -103,6 +179,25 @@ export const updateTestServiceStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Test Service not found" });
     }
     res.status(200).json({ success: true, message: "Status updated successfully", data: service });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const bulkCreateTestServices = async (req, res) => {
+  try {
+    const { services } = req.body;
+    if (!services || !Array.isArray(services)) {
+      return res.status(400).json({ success: false, message: "Invalid data format" });
+    }
+
+    const createdServices = await TestService.insertMany(services);
+
+    res.status(201).json({
+      success: true,
+      message: `${createdServices.length} Test Services imported successfully`,
+      data: createdServices
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
