@@ -65,12 +65,24 @@ export const createRegistration = async (req, res) => {
 
       // Handle Certification: [{ name, file }]
       // The frontend might send certificationData as a JSON string
+      // Standardize field name to 'Certification'
+      if (formData.certifications) {
+         formData.Certification = formData.certifications;
+         delete formData.certifications;
+      }
+      if (formData.certification) {
+         formData.Certification = formData.certification;
+         delete formData.certification;
+      }
+
+      // Parse 'Certification' if it's a JSON string
       if (typeof formData.Certification === "string") {
-        formData.Certification = JSON.parse(formData.Certification);
-      } else if (typeof formData.certifications === "string") {
-        // Fallback for old field name
-        formData.Certification = JSON.parse(formData.certifications);
-        delete formData.certifications;
+        try {
+          formData.Certification = JSON.parse(formData.Certification);
+        } catch (e) {
+          console.error("CERT_PARSE_ERROR:", e);
+          formData.Certification = [];
+        }
       }
 
       // If there are uploaded certification files, map them to the Certification array
