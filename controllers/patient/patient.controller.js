@@ -18,16 +18,16 @@ export const sendOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please enter a valid 10-digit Indian mobile number (6-9 starting)" });
     }
 
-    // Generate 4 digit OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-    console.log(`OTP for ${mobile}: ${otp}`);
+    // Fix OTP to 1234 for manual testing as per user request
+    const otp = "1234"; 
+    console.log(`FIXED OTP for ${mobile}: ${otp}`);
 
     await Otp.deleteMany({ mobile });
     await Otp.create({ mobile, otp });
 
     res.json({
       success: true,
-      message: "OTP sent successfully (Check console)",
+      message: "OTP sent successfully (Fixed to 1234)",
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

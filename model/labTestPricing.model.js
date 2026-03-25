@@ -18,6 +18,9 @@ const labTestPricingSchema = new mongoose.Schema(
     discountPrice: {
       type: String,
     },
+    discountPercent: {
+      type: String, // Store percent for consistency
+    },
     addedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Registration",

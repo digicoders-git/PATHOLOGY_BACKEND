@@ -8,6 +8,9 @@ import {
   deleteRegistration,
   importRegistrationsExcel,
   bulkCreateRegistrations,
+  getNearbyLabs,
+  getLabsByTest,
+  getTestsByLab,
 } from "../controllers/registration.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import upload from "../middleware/multer.js";
@@ -25,9 +28,12 @@ const cpUpload = upload.fields([
 // Public route for website
 router.post("/create", cpUpload, createRegistration);
 
-// Protected routes for dashboard
-router.get("/get", verifyAdminToken, getAllRegistrations);
-router.get("/get/:id", verifyAdminToken, getRegistrationById);
+// GET routes (Public)
+router.get("/get", getAllRegistrations);
+router.get("/nearby", getNearbyLabs);
+router.get("/test/:testId", getLabsByTest);
+router.get("/lab/:id/tests", getTestsByLab);
+router.get("/get/:id", getRegistrationById);
 router.post("/import-excel", verifyAdminToken, upload.single("excelFile"), importRegistrationsExcel);
 router.post("/bulk-create", verifyAdminToken, bulkCreateRegistrations);
 router.put("/:id", verifyAdminToken, cpUpload, updateRegistration);

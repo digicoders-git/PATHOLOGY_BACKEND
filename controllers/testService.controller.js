@@ -1,89 +1,131 @@
 import TestService from "../model/testService.model.js";
 import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 
+// ── Helper: Parse and Clean Data ──────────────────────────────────────────────
+const cleanStr = (val) => {
+  if (typeof val !== "string") return val;
+  // Remove starting/ending quotes and whitespace if double-quoted
+  let s = val.trim();
+  if (s.startsWith('"') && s.endsWith('"')) s = s.substring(1, s.length - 1);
+  return s.trim();
+};
+
+const parseArrayField = (val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string" && val.trim() !== "") {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+};
+
+// ── CREATE ───────────────────────────────────────────────────────────────────
 export const createTestService = async (req, res) => {
   try {
-    const { 
-      title, 
-      status, 
-      category_id, 
-      fasting_required, 
-      fasting_hours, 
-      instruction_text, 
-      sample_type, 
-      report_time, 
-      instructions,
-      mrp,
-      price,
-      test_code
-    } = req.body;
-
-    if (!title) {
-      return res.status(400).json({ success: false, message: "Title is required" });
-    }
-
-    let inputInstructions = instructions;
-    if (typeof instructions === 'string' && instructions !== "") {
-      try {
-        inputInstructions = JSON.parse(instructions);
-      } catch (_) {
-        inputInstructions = [];
-      }
-    }
-
+    const b = req.body;
+    
+    // Handle image
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
       const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
-      imageData = {
-        local: req.file.path.replace(/\\/g, '/'),
-        cloudinary: cloudinaryUrl || ""
-      };
+      imageData = { local: req.file.path.replace(/\\/g, "/"), cloudinary: cloudinaryUrl || "" };
     }
 
-    const newService = await TestService.create({ 
-      title, 
-      status: status !== undefined ? status : true, 
-      category_id: category_id || null, 
-      fasting_required: fasting_required || false, 
-      fasting_hours: fasting_hours || 0, 
-      instruction_text: instruction_text || "", 
-      sample_type: sample_type || "", 
-      report_time: report_time || "", 
-      instructions: inputInstructions || [],
-      mrp: mrp || 0,
-      price: price || 0,
-      test_code: test_code || "",
-      image: imageData
+    const newService = await TestService.create({
+      title:              cleanStr(b.title),
+      test_code:          cleanStr(b.test_code),
+      status:             b.status === "true" || b.status === true,
+      is_featured:        b.is_featured === "true" || b.is_featured === true,
+      category_id:        (b.category_id && b.category_id !== "null") ? b.category_id : null,
+      mrp:                Number(b.mrp) || 0,
+      price:              Number(b.price) || 0,
+      sample_type:        cleanStr(b.sample_type),
+      report_time:        cleanStr(b.report_time),
+      short_description:  cleanStr(b.short_description),
+      overview:           b.overview || "", // Rich text, don't trim quotes
+      test_method:        cleanStr(b.test_method),
+      fasting_required:   b.fasting_required === "true" || b.fasting_required === true,
+      fasting_hours:      Number(b.fasting_hours) || 0,
+      precautions_during: cleanStr(b.precautions_during),
+      instruction_text:   cleanStr(b.instruction_text),
+      // Array fields
+      purpose:            parseArrayField(b.purpose),
+      test_components:    parseArrayField(b.test_components),
+      precautions_before: parseArrayField(b.precautions_before),
+      precautions_after:  parseArrayField(b.precautions_after),
+      instructions:       parseArrayField(b.instructions),
+      image: imageData,
     });
 
-    res.status(201).json({ success: true, message: "Test Service created successfully", data: newService });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.status(201).json({ success: true, message: "Created successfully", data: newService });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// ── UPDATE ───────────────────────────────────────────────────────────────────
+export const updateTestService = async (req, res) => {
+  try {
+    const b = req.body;
+    const updateData = {};
+
+    // Strings
+    const stringFields = ["title", "test_code", "sample_type", "report_time", "short_description", "test_method", "precautions_during", "instruction_text"];
+    stringFields.forEach(f => { if (b[f] !== undefined) updateData[f] = cleanStr(b[f]); });
+
+    if (b.overview !== undefined) updateData.overview = b.overview;
+
+    // Numbers
+    if (b.mrp !== undefined)   updateData.mrp = Number(b.mrp);
+    if (b.price !== undefined) updateData.price = Number(b.price);
+    if (b.fasting_hours !== undefined) updateData.fasting_hours = Number(b.fasting_hours);
+
+    // Booleans
+    if (b.status !== undefined)           updateData.status = (b.status === "true" || b.status === true);
+    if (b.is_featured !== undefined)      updateData.is_featured = (b.is_featured === "true" || b.is_featured === true);
+    if (b.fasting_required !== undefined) updateData.fasting_required = (b.fasting_required === "true" || b.fasting_required === true);
+
+    // Category
+    if (b.category_id !== undefined) updateData.category_id = (b.category_id === "" || b.category_id === "null") ? null : b.category_id;
+
+    // Arrays
+    const arrayFields = ["purpose", "test_components", "precautions_before", "precautions_after", "instructions"];
+    arrayFields.forEach(f => { if (b[f] !== undefined) updateData[f] = parseArrayField(b[f]); });
+
+    // Image
+    if (req.file) {
+      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
+      updateData.image = { local: req.file.path.replace(/\\/g, "/"), cloudinary: cloudinaryUrl || "" };
+    }
+
+    const service = await TestService.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    if (!service) return res.status(404).json({ success: false, message: "Not found" });
+    res.status(200).json({ success: true, message: "Updated successfully", data: service });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── GET ALL ──────────────────────────────────────────────────────────────────
 export const getAllTestServices = async (req, res) => {
   try {
     const { page = 1, limit = 10, search = "", status, category_id } = req.query;
-
     const query = {};
-
     if (search) {
-      query.title = { $regex: search, $options: "i" };
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { test_code: { $regex: search, $options: "i" } }
+      ];
     }
-
-    if (status !== undefined && status !== "") {
-      query.status = status === "true" || status === true;
-    }
-
-    if (category_id) {
-      query.category_id = category_id;
-    }
+    if (status !== undefined && status !== "") query.status = status === "true";
+    if (category_id) query.category_id = category_id;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await TestService.countDocuments(query);
     const services = await TestService.find(query)
-      .populate('category_id')
+      .populate('category_id', 'name')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -91,115 +133,70 @@ export const getAllTestServices = async (req, res) => {
     res.status(200).json({
       success: true,
       data: services,
-      pagination: {
-        total,
-        page: parseInt(page),
-        limit: parseInt(limit),
-        totalPages: Math.ceil(total / parseInt(limit))
-      }
+      pagination: { total, page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / parseInt(limit)) }
     });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
-
+// ── GET BY ID ────────────────────────────────────────────────────────────────
 export const getTestServiceById = async (req, res) => {
   try {
-    const service = await TestService.findById(req.params.id)
-      .populate('category_id');
-    if (!service) {
-      return res.status(404).json({ success: false, message: "Test Service not found" });
-    }
-    res.status(200).json({ success: true, data: service });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-export const updateTestService = async (req, res) => {
-  try {
-    let updateData = { ...req.body };
+    let id = req.params.id;
+    // Remove any non-hex characters just in case
+    id = id.replace(/[^a-fA-F0-9]/g, "").trim(); 
     
-    // Parse JSON strings if they come from FormData
-    if (typeof updateData.instructions === 'string' && updateData.instructions !== "") {
-      try {
-        updateData.instructions = JSON.parse(updateData.instructions);
-      } catch (_) {
-        updateData.instructions = [];
-      }
-    }
+    console.log("CLEANED ID FOR SEARCH:", id);
 
-    if (updateData.category_id === "" || updateData.category_id === "null") updateData.category_id = null;
-    delete updateData.subcategory_id;
-
-    if (req.file) {
-      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
-      updateData.image = {
-        local: req.file.path.replace(/\\/g, '/'),
-        cloudinary: cloudinaryUrl || ""
-      };
-    }
-
-    const service = await TestService.findByIdAndUpdate(
-      req.params.id,
-      updateData,
-      { new: true, runValidators: true }
-    );
+    let service = await TestService.findById(id); 
+    
     if (!service) {
-      return res.status(404).json({ success: false, message: "Test Service not found" });
+      service = await TestService.findOne({ _id: id });
     }
-    res.status(200).json({ success: true, message: "Test Service updated successfully", data: service });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    
+    if (!service) {
+      return res.status(404).json({ success: false, message: `Test with ID ${id} not found in database.` });
+    }
+    
+    // Now populate if found
+    await service.populate('category_id', 'name');
+    
+    res.status(200).json({ success: true, data: service });
+  } catch (err) {
+    console.error("CRITICAL GET_BY_ID ERROR:", err.message);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// ── DELETE ───────────────────────────────────────────────────────────────────
 export const deleteTestService = async (req, res) => {
   try {
     const service = await TestService.findByIdAndDelete(req.params.id);
-    if (!service) {
-      return res.status(404).json({ success: false, message: "Test Service not found" });
-    }
-    res.status(200).json({ success: true, message: "Test Service deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    if (!service) return res.status(404).json({ success: false, message: "Not found" });
+    res.status(200).json({ success: true, message: "Deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// ── STATUS ───────────────────────────────────────────────────────────────────
 export const updateTestServiceStatus = async (req, res) => {
   try {
-    const { status } = req.body;
-    const service = await TestService.findByIdAndUpdate(
-      req.params.id,
-      { status },
-      { new: true }
-    );
-    if (!service) {
-      return res.status(404).json({ success: false, message: "Test Service not found" });
-    }
-    res.status(200).json({ success: true, message: "Status updated successfully", data: service });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    const service = await TestService.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+    if (!service) return res.status(404).json({ success: false, message: "Not found" });
+    res.status(200).json({ success: true, message: "Status updated", data: service });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
+// ── BULK ─────────────────────────────────────────────────────────────────────
 export const bulkCreateTestServices = async (req, res) => {
   try {
-    const { services } = req.body;
-    if (!services || !Array.isArray(services)) {
-      return res.status(400).json({ success: false, message: "Invalid data format" });
-    }
-
-    const createdServices = await TestService.insertMany(services);
-
-    res.status(201).json({
-      success: true,
-      message: `${createdServices.length} Test Services imported successfully`,
-      data: createdServices
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    const created = await TestService.insertMany(req.body.services);
+    res.status(201).json({ success: true, message: `${created.length} imported`, data: created });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
 };
-

@@ -19,6 +19,8 @@ import pathologyTestPricingRoutes from './routes/pathology/pathologyTestPricing.
 import labTestPricingRouter from './routes/labTestPricing.routes.js';
 import categoryRoutes from './routes/admin/category.routes.js';
 import subcategoryRoutes from './routes/admin/subcategory.routes.js';
+import planRouter from './routes/plan.routes.js';
+import bookingRouter from './routes/booking.routes.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -54,6 +56,7 @@ app.get('/endpoints', (req, res) => {
 app.use('/admin', adminRoute)
 app.use('/test-service', testServiceRouter)
 app.use('/registrations', registrationRouter)
+app.use('/registration', registrationRouter)
 app.use('/parent', parentRouter)
 app.use('/dashboard', dashboardRouter)
 app.use('/manage-package', managePackageRoutes)
@@ -64,6 +67,8 @@ app.use('/lab-test-pricing', labTestPricingRouter)
 app.use('/categories', categoryRoutes)
 app.use('/subcategories', subcategoryRoutes)
 app.use('/tests', testServiceRouter)
+app.use('/plans', planRouter)
+app.use('/booking', bookingRouter)
 
 // 404 handler
 app.use((req, res) =>

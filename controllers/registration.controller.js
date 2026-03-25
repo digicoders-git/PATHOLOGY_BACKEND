@@ -1,6 +1,7 @@
 import Registration from "../model/registration.model.js";
 import LabTestPricing from "../model/labTestPricing.model.js";
 import bcrypt from "bcryptjs";
+import axios from "axios";
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const XLSX = require('xlsx');
@@ -104,6 +105,15 @@ export const createRegistration = async (req, res) => {
     if (formData.establishmentYear) {
       formData.establishmentYear = Number(formData.establishmentYear);
     }
+    if (formData.latitude) formData.latitude = Number(formData.latitude);
+    if (formData.longitude) formData.longitude = Number(formData.longitude);
+
+    if (formData.latitude && formData.longitude) {
+      formData.location = {
+        type: "Point",
+        coordinates: [Number(formData.longitude), Number(formData.latitude)]
+      };
+    }
 
     // Hash password if provided
     if (formData.password) {
@@ -121,6 +131,7 @@ export const createRegistration = async (req, res) => {
         test: item.name,
         price: item.price,
         discountPrice: item.discountPrice,
+        discountPercent: item.discountPercent || "",
         addedBy: registration._id,
       }));
 
@@ -431,6 +442,17 @@ export const updateRegistration = async (req, res) => {
     if (formData.establishmentYear === "") {
       formData.establishmentYear = null;
     }
+    if (formData.latitude) formData.latitude = Number(formData.latitude);
+    if (formData.longitude) formData.longitude = Number(formData.longitude);
+    if (formData.latitude === "") formData.latitude = null;
+    if (formData.longitude === "") formData.longitude = null;
+
+    if (formData.latitude && formData.longitude) {
+      formData.location = {
+        type: "Point",
+        coordinates: [Number(formData.longitude), Number(formData.latitude)]
+      };
+    }
 
     // Handle files
     if (req.files) {
@@ -504,6 +526,7 @@ export const updateRegistration = async (req, res) => {
         test: item.name,
         price: item.price,
         discountPrice: item.discountPrice,
+        discountPercent: item.discountPercent || "",
         addedBy: id,
       }));
 
@@ -567,8 +590,35 @@ export const importRegistrationsExcel = async (req, res) => {
         const password = row.password ? row.password.toString() : "Lab@123";
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        // 🌍 GEOCODE: If coordinates are missing, fetch from address
+        let latitude = row.latitude;
+        let longitude = row.longitude;
+        
+        if (!latitude || !longitude) {
+           const searchAddr = row.fullAddress || `${row.areaName}, ${row.city}, ${row.state}`;
+           if (searchAddr && searchAddr.length > 5) {
+              try {
+                 const geoRes = await axios.get(`https://maps.googleapis.com/maps/api/geocode/json`, {
+                    params: {
+                       address: searchAddr,
+                       key: "AIzaSyBEss4wpsQ0o9WPBjDgHsSByUzFuo2oSNE"
+                    }
+                 });
+                 if (geoRes.data.status === "OK") {
+                    const location = geoRes.data.results[0].geometry.location;
+                    latitude = location.lat;
+                    longitude = location.lng;
+                 }
+              } catch (geoErr) {
+                 console.error("Geocoding failed for row:", searchAddr, geoErr.message);
+              }
+           }
+        }
+
         const newLab = new Registration({
           ...row,
+          latitude: latitude ? Number(latitude) : undefined,
+          longitude: longitude ? Number(longitude) : undefined,
           password: hashedPassword,
           source: "admin",
           status: true
@@ -654,5 +704,148 @@ export const bulkCreateRegistrations = async (req, res) => {
 
   } catch (error) {
     res.status(500).json({ success: false, message: "Bulk import failed: " + error.message });
+  }
+};
+
+export const getNearbyLabs = async (req, res) => {
+  try {
+    const { lat, lng, distance = 10 } = req.query; // distance in KM
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: "Latitude and Longitude are required",
+      });
+    }
+
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    const radiusInMeter = parseFloat(distance) * 1000;
+
+    const nearbyLabs = await Registration.aggregate([
+      {
+        $geoNear: {
+          near: {
+            type: "Point",
+            coordinates: [longitude, latitude],
+          },
+          distanceField: "distance_meter",
+          maxDistance: radiusInMeter,
+          spherical: true,
+          query: { status: true },
+        },
+      },
+      {
+        $lookup: {
+          from: "labtestpricings", // verify collection name in DB, usually lowercase + s
+          localField: "_id",
+          foreignField: "registration",
+          as: "testPricing",
+        },
+      },
+      {
+        $addFields: {
+          distance_km: { $divide: ["$distance_meter", 1000] },
+        },
+      },
+      {
+        $project: {
+          password: 0,
+          "testPricing.addedBy": 0,
+        },
+      },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      count: nearbyLabs.length,
+      data: nearbyLabs,
+    });
+  } catch (error) {
+    console.error("NEARBY_LABS_ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch nearby labs: " + error.message,
+    });
+  }
+};
+
+export const getLabsByTest = async (req, res) => {
+  try {
+    const { testId } = req.params;
+
+    if (!testId) {
+      return res.status(400).json({
+        success: false,
+        message: "Test ID is required",
+      });
+    }
+
+    // Find all pricing entries for this test and populate lab data
+    const labPricings = await LabTestPricing.find({ test: testId })
+      .populate({
+        path: "registration",
+        select: "labName labLogo labType fullAddress phone email rating status description",
+        match: { status: true } 
+      });
+
+    // Filter out entries where registration is null (inactive labs)
+    const availableLabs = labPricings.filter(p => p.registration !== null);
+
+    res.status(200).json({
+      success: true,
+      count: availableLabs.length,
+      data: availableLabs.map(item => ({
+        lab: item.registration,
+        pricing: {
+          mrp: item.price,
+          sellingPrice: item.discountPrice,
+          discountPercent: item.discountPercent
+        }
+      })),
+    });
+  } catch (error) {
+    console.error("GET_LABS_BY_TEST_ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch labs for this test: " + error.message,
+    });
+  }
+};
+
+export const getTestsByLab = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+       return res.status(400).json({ success: false, message: "Lab ID is required" });
+    }
+
+    // Find all tests and pricing for this lab
+    const tests = await LabTestPricing.find({ registration: id })
+      .populate({
+        path: "test",
+        select: "title image test_code sample_type report_time short_description category_id",
+        populate: { path: "category_id", select: "name" }
+      });
+
+    res.status(200).json({
+      success: true,
+      count: tests.length,
+      data: tests.map(item => ({
+        test_details: item.test,
+        pricing: {
+          mrp: item.price,
+          sellingPrice: item.discountPrice,
+          discountPercent: item.discountPercent
+        }
+      })),
+    });
+  } catch (error) {
+    console.error("GET_TESTS_BY_LAB_ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch tests for this lab: " + error.message,
+    });
   }
 };

@@ -45,6 +45,23 @@ const registrationSchema = new mongoose.Schema(
     pincode: {
       type: String,
     },
+    latitude: {
+      type: Number,
+    },
+    longitude: {
+      type: Number,
+    },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
+      },
+    },
 
 
     phone: {
@@ -147,5 +164,7 @@ const registrationSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+registrationSchema.index({ location: "2dsphere" });
 
 export default mongoose.model("Registration", registrationSchema);
