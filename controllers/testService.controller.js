@@ -119,7 +119,9 @@ export const getAllTestServices = async (req, res) => {
         { test_code: { $regex: search, $options: "i" } }
       ];
     }
-    if (status !== undefined && status !== "") query.status = status === "true";
+    if (status !== undefined && status !== "") {
+      query.status = (status === "true" || status === true);
+    }
     if (category_id) query.category_id = category_id;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
