@@ -28,6 +28,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express()
 const port = process.env.PORT || 3000
+
+// DEBUG LOGGING
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
@@ -35,7 +42,13 @@ const allowedOrigins = [
   'https://www.laboindia.com',
   'https://laboindia.com',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  'http://127.0.0.1:5175',
+  'http://localhost:3000',
+  'http://localhost:3001'
 ];
 
 app.use(

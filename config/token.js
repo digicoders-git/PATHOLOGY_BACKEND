@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken'
 
-const generateToken = (id) => {
-  let token = jwt.sign({id}, process.env.JWT_SECRET)
+const generateToken = (id, role = "admin") => {
+  let token = jwt.sign({ id, role }, process.env.JWT_SECRET)
   return token
 }
 export default generateToken;
