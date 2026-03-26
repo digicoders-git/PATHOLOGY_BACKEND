@@ -2,14 +2,18 @@ import Registration from "../model/registration.model.js";
 import Parent from "../model/parent.model.js";
 import TestService from "../model/testService.model.js";
 import Category from "../model/category.model.js";
+import Patient from "../model/patient/patient.model.js";
+import Booking from "../model/booking.model.js";
 
 export const getDashboardStats = async (req, res) => {
   try {
-    const [registrations, parents, tests, categories] = await Promise.all([
+    const [registrations, parents, tests, categories, patients, bookings] = await Promise.all([
       Registration.countDocuments(),
       Parent.countDocuments(),
       TestService.countDocuments(),
       Category.countDocuments(),
+      Patient.countDocuments(),
+      Booking.countDocuments(),
     ]);
 
     // Registration Trend (Last 7 Days)
@@ -54,6 +58,8 @@ export const getDashboardStats = async (req, res) => {
         parents,
         tests,
         categories,
+        patients,
+        bookings,
         registrationTrend,
         categoryDist,
         statusDist,
