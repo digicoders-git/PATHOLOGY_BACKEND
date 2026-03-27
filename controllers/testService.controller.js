@@ -196,8 +196,62 @@ export const updateTestServiceStatus = async (req, res) => {
 // ── BULK ─────────────────────────────────────────────────────────────────────
 export const bulkCreateTestServices = async (req, res) => {
   try {
-    const created = await TestService.insertMany(req.body.services);
-    res.status(201).json({ success: true, message: `${created.length} imported`, data: created });
+    const { services } = req.body;
+    if (!services || !Array.isArray(services) || services.length === 0) {
+      return res.status(400).json({ success: false, message: "No services provided" });
+    }
+
+    // Get all categories once for name→id lookup
+    const Category = (await import('../model/category.model.js')).default;
+    const allCategories = await Category.find({}, '_id name');
+    const catMap = {};
+    allCategories.forEach(c => { catMap[c.name.toLowerCase().trim()] = c._id; });
+
+    const results = { imported: 0, errors: [] };
+
+    for (const row of services) {
+      try {
+        if (!row.title) {
+          results.errors.push(`Row missing title — skipped`);
+          continue;
+        }
+
+        // Resolve category name to ObjectId
+        let category_id = null;
+        if (row.category) {
+          category_id = catMap[row.category.toLowerCase().trim()] || null;
+          if (!category_id) results.errors.push(`Category "${row.category}" not found for "${row.title}" — saved without category`);
+        }
+
+        await TestService.create({
+          title:              cleanStr(row.title),
+          test_code:          cleanStr(row.test_code || ""),
+          category_id,
+          mrp:                Number(row.mrp) || 0,
+          price:              Number(row.price) || 0,
+          sample_type:        cleanStr(row.sample_type || ""),
+          report_time:        cleanStr(row.report_time || ""),
+          short_description:  cleanStr(row.short_description || ""),
+          overview:           row.overview || "",
+          test_method:        cleanStr(row.test_method || ""),
+          precautions_during: cleanStr(row.precautions_during || ""),
+          instruction_text:   cleanStr(row.instruction_text || ""),
+          fasting_required:   row.fasting_required === true || row.fasting_required === "true" || row.fasting_required === 1,
+          fasting_hours:      Number(row.fasting_hours) || 0,
+          status:             row.status === false || row.status === "false" || row.status === 0 ? false : true,
+          is_featured:        row.is_featured === true || row.is_featured === "true" || row.is_featured === 1,
+        });
+        results.imported++;
+      } catch (err) {
+        results.errors.push(`"${row.title}": ${err.message}`);
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `${results.imported} tests imported successfully${results.errors.length ? `, ${results.errors.length} skipped` : ""}`,
+      data: results,
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
