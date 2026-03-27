@@ -156,6 +156,10 @@ const registrationSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isFeatured: {
+      type: Boolean,
+      default: false,
+    },
     source: {
       type: String,
       enum: ["website", "admin"],

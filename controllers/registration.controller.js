@@ -273,7 +273,7 @@ export const getAllRegistrations = async (req, res) => {
       Registration.find(query)
         .populate("selectedTests")
         .populate("parent")
-        .sort({ createdAt: -1 })
+        .sort({ isFeatured: -1, createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
       Registration.aggregate([
@@ -378,6 +378,25 @@ export const getRegistrationById = async (req, res) => {
       message: "Failed to fetch registration details",
       error: error.message,
     });
+  }
+};
+
+export const toggleFeatured = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const reg = await Registration.findById(id);
+    if (!reg) return res.status(404).json({ success: false, message: "Registration not found" });
+
+    const newFeatured = !reg.isFeatured;
+    await Registration.findByIdAndUpdate(id, { isFeatured: newFeatured });
+
+    res.json({
+      success: true,
+      message: `Lab ${newFeatured ? "marked as Featured" : "removed from Featured"}`,
+      isFeatured: newFeatured,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 

@@ -4,6 +4,7 @@ import {
   getAllRegistrations,
   getRegistrationById,
   updateRegistrationStatus,
+  toggleFeatured,
   updateRegistration,
   deleteRegistration,
   importRegistrationsExcel,
@@ -38,6 +39,7 @@ router.post("/import-excel", verifyAdminToken, upload.single("excelFile"), impor
 router.post("/bulk-create", verifyAdminToken, bulkCreateRegistrations);
 router.put("/:id", verifyAdminToken, cpUpload, updateRegistration);
 router.patch("/status/:id", verifyAdminToken, updateRegistrationStatus);
+router.patch("/featured/:id", verifyAdminToken, toggleFeatured);
 router.delete("/:id", verifyAdminToken, deleteRegistration);
 
 export default router;
