@@ -1,4 +1,5 @@
 import Booking from "../model/booking.model.js";
+import TestBooking from "../model/testBooking.model.js";
 import LabTestPricing from "../model/labTestPricing.model.js";
 import TestService from "../model/testService.model.js";
 
@@ -74,47 +75,121 @@ export const createBooking = async (req, res) => {
   }
 };
 
-// 2. Get All Bookings (with optional filters)
+// 2. Get All Bookings (Booking + TestBooking merged)
 export const getAllBookings = async (req, res) => {
   try {
-    const { status, patientId, registrationId } = req.query;
-    const filter = {};
-    
-    // Role-based filtering
-    if (req.admin) {
-        // Super Admin: sees everything
-        if (patientId) filter.patient = patientId;
-        if (registrationId) filter.registration = registrationId;
-    } else if (req.user && req.user.id) {
-        // Either Patient or Lab Owner (both set req.user.id)
-        // Check if its a Lab by checking registrationId vs user ID or context
-        // We'll assume if it's not Admin, we check the token payload or model type later
-        // But for now, if patient query exists, its likely a Patient or Admin
-        
-        // Better: Lab Owner usually has different set of requirements
-        // We can check if req.user has labName (set in pathologyAuth)
-        if (req.user.labName) {
-            filter.registration = req.user.id; // Lab sees only their bookings
-            if (patientId) filter.patient = patientId; // Lab can filter by patient
-        } else {
-            filter.patient = req.user.id; // Patient sees only their bookings
-            if (registrationId) filter.registration = registrationId;
-        }
+    const { status, search, page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // ── Build filters ──────────────────────────────────────────
+    const oldFilter = {};
+    const newFilter = {};
+
+    if (status) {
+      oldFilter.status = status;
+      newFilter.bookingStatus = status;
     }
 
-    if (status) filter.status = status;
-    if (registrationId) filter.registration = registrationId;
+    // ── Fetch both collections in parallel ─────────────────────
+    const [oldBookings, newBookings] = await Promise.all([
+      Booking.find(oldFilter)
+        .populate("patient", "name mobile email")
+        .populate("registration", "labName city phone")
+        .populate("tests.test", "title test_code")
+        .sort({ createdAt: -1 }),
 
-    const bookings = await Booking.find(filter)
-      .populate("patient", "name phone email")
-      .populate("registration", "labName fullAddress labLogo")
-      .populate("tests.test", "title test_code image")
-      .sort({ createdAt: -1 });
+      TestBooking.find(newFilter)
+        .populate("patientId", "name mobile email")
+        .populate("labId", "labName city phone")
+        .populate({
+          path: "labTestPricingId",
+          populate: { path: "test", select: "title test_code" },
+        })
+        .populate("slotId", "date startTime endTime")
+        .sort({ createdAt: -1 }),
+    ]);
+
+    // ── Normalize old Booking records ──────────────────────────
+    const normalizedOld = oldBookings.map((b) => ({
+      _id: b._id,
+      source: "direct",
+      bookingId: b._id.toString().slice(-8).toUpperCase(),
+      patient: {
+        name: b.patient?.name || "N/A",
+        mobile: b.patient?.phone || b.patient?.mobile || "—",
+        email: b.patient?.email || "—",
+      },
+      lab: {
+        name: b.registration?.labName || "N/A",
+        city: b.registration?.city || "—",
+      },
+      testName: b.tests?.map((t) => t.test?.title).filter(Boolean).join(", ") || "—",
+      testCount: b.tests?.length || 0,
+      bookingDate: b.scheduledDate || b.bookingDate,
+      slotTime: null,
+      amount: b.finalAmount || 0,
+      paymentStatus: b.paymentStatus,
+      paymentMode: b.paymentMethod,
+      status: b.status,
+      reportFile: b.reportFile || "",
+      reportStatus: b.reportFile ? "Uploaded" : "Pending",
+      createdAt: b.createdAt,
+    }));
+
+    // ── Normalize new TestBooking records ──────────────────────
+    const normalizedNew = newBookings.map((b) => ({
+      _id: b._id,
+      source: "app",
+      bookingId: b.bookingId || b._id.toString().slice(-8).toUpperCase(),
+      patient: {
+        name: b.patientId?.name || "N/A",
+        mobile: b.patientId?.mobile || "—",
+        email: b.patientId?.email || "—",
+      },
+      lab: {
+        name: b.labId?.labName || "N/A",
+        city: b.labId?.city || "—",
+      },
+      testName: b.labTestPricingId?.test?.title || "—",
+      testCount: 1,
+      bookingDate: b.bookingDate,
+      slotTime: b.slotId ? `${b.slotId.startTime} - ${b.slotId.endTime}` : null,
+      amount: b.amount || 0,
+      paymentStatus: b.paymentStatus,
+      paymentMode: b.paymentMode,
+      status: b.bookingStatus,
+      reportFile: b.reportFile || "",
+      reportStatus: b.reportStatus,
+      createdAt: b.createdAt,
+    }));
+
+    // ── Merge & sort by createdAt desc ─────────────────────────
+    let merged = [...normalizedOld, ...normalizedNew].sort(
+      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+    );
+
+    // ── Search filter (client-friendly, on merged data) ────────
+    if (search) {
+      const q = search.toLowerCase();
+      merged = merged.filter(
+        (b) =>
+          b.patient.name.toLowerCase().includes(q) ||
+          b.patient.mobile.includes(q) ||
+          b.lab.name.toLowerCase().includes(q) ||
+          b.bookingId.toLowerCase().includes(q) ||
+          b.testName.toLowerCase().includes(q)
+      );
+    }
+
+    const total = merged.length;
+    const paginated = merged.slice(skip, skip + parseInt(limit));
 
     res.status(200).json({
       success: true,
-      count: bookings.length,
-      data: bookings,
+      count: total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+      data: paginated,
     });
   } catch (error) {
     console.error("GET_ALL_BOOKINGS_ERROR:", error);

@@ -1,6 +1,6 @@
 import express from "express";
 import { loginPathology, getPathologyProfile } from "../../controllers/pathology/pathology.controller.js";
-import { generateSlots, getLabSlots, deleteSlot } from "../../controllers/pathology/slot.controller.js";
+import { getAllSlots, generateSlots, getLabSlots, deleteSlot } from "../../controllers/pathology/slot.controller.js";
 import { getMyLabBookings, updateBookingStatus, uploadTestReport } from "../../controllers/pathology/bookingManagement.controller.js";
 import { pathologyAuth } from "../../middleware/pathologyAuth.middleware.js";
 import upload from "../../middleware/multer.js";
@@ -11,6 +11,7 @@ router.post("/login", loginPathology);
 router.get("/profile", pathologyAuth, getPathologyProfile);
 
 // Slot Management
+router.get("/all-slots", getAllSlots);
 router.post("/generate-slots", generateSlots);
 router.get("/get-slots", getLabSlots);
 router.delete("/delete-slot/:id", deleteSlot);

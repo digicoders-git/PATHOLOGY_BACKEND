@@ -1,4 +1,39 @@
 import LabSlot from "../../model/labSlot.model.js";
+import Registration from "../../model/registration.model.js";
+
+/**
+ * Get ALL slots across all labs (Admin panel view) with populate
+ */
+export const getAllSlots = async (req, res) => {
+  try {
+    const { date, status, labId, page = 1, limit = 10 } = req.query;
+
+    const query = {};
+    if (date) query.date = date;
+    if (labId) query.labId = labId;
+    if (status === "booked") query.isBooked = true;
+    if (status === "available") query.isBooked = false;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await LabSlot.countDocuments(query);
+
+    const slots = await LabSlot.find(query)
+      .populate("labId", "labName city phone")
+      .sort({ date: -1, startTime: 1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    res.json({
+      success: true,
+      data: slots,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 /**
  * Generate default slots for a lab for a specific date range or single date

@@ -142,11 +142,10 @@ export const updateStatus = async (req, res) => {
 
 export const getAllPatients = async (req, res) => {
   try {
-    const { search, name, email, mobile, age, address, isActive } = req.query;
+    const { search, isActive, page = 1, limit = 10 } = req.query;
 
     let query = {};
 
-    // Global Search (Multiple fields)
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
@@ -156,20 +155,24 @@ export const getAllPatients = async (req, res) => {
       ];
     }
 
-    // Specific Filters
-    if (name) query.name = { $regex: name, $options: "i" };
-    if (email) query.email = { $regex: email, $options: "i" };
-    if (mobile) query.mobile = { $regex: mobile, $options: "i" };
-    if (age) query.age = age;
-    if (address) query.address = { $regex: address, $options: "i" };
-    if (isActive !== undefined) query.isActive = isActive === "true";
+    if (isActive !== undefined && isActive !== "") {
+      query.isActive = isActive === "true";
+    }
 
-    const patients = await Patient.find(query).sort({ createdAt: -1 });
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Patient.countDocuments(query);
+
+    const patients = await Patient.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
 
     res.json({
       success: true,
-      count: patients.length,
+      count: total,
       patients,
+      totalPages: Math.ceil(total / parseInt(limit)),
+      page: parseInt(page),
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
