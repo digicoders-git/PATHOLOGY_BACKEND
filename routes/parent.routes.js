@@ -6,13 +6,14 @@ import {
   deleteParent,
   updateParentStatus,
 } from "../controllers/parent.controller.js";
+import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 
 const router = express.Router();
 
-router.post("/create", createParent);
+router.post("/create", verifyAdminToken, createParent);
 router.get("/get", getAllParents);
-router.put("/update/:id", updateParent);
-router.delete("/delete/:id", deleteParent);
-router.patch("/status/:id", updateParentStatus);
+router.put("/update/:id", verifyAdminToken, updateParent);
+router.delete("/delete/:id", verifyAdminToken, deleteParent);
+router.patch("/status/:id", verifyAdminToken, updateParentStatus);
 
 export default router;

@@ -10,7 +10,7 @@ export const patientAuth = (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_default_secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     req.user = decoded;
 
@@ -30,7 +30,7 @@ export const patientAdminAuth = (req, res, next) => {
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your_default_secret');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Attach to both for compatibility
     req.user = decoded;
