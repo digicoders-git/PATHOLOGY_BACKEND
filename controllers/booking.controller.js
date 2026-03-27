@@ -65,14 +65,14 @@ export const createBooking = async (req, res) => {
 
     await newBooking.save();
 
-    // Auto notification
+    // Auto notification — fire and forget
     createNotification(
-      "New Booking Created",
+      "New Direct Booking",
       `A new test booking has been placed.`,
       "booking",
       "/dashboard/bookings",
       newBooking._id
-    );
+    ).catch(() => {});
 
     res.status(201).json({
       success: true,

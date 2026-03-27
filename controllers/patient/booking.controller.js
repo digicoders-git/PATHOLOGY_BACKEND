@@ -87,14 +87,14 @@ export const bookTest = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Auto notification
+    // Auto notification — fire and forget
     createNotification(
       "New App Booking",
       `A patient has booked a test via the app.`,
       "booking",
       "/dashboard/bookings",
       booking._id
-    );
+    ).catch(() => {});
 
     // Populate details for confirmation screen
     const confirmedBooking = await TestBooking.findById(booking._id)

@@ -137,14 +137,14 @@ export const createRegistration = async (req, res) => {
 
     const registration = await Registration.create(formData);
 
-    // Auto notification
+    // Auto notification — fire and forget
     createNotification(
       "New Lab Registration",
       `${formData.labName || "A new lab"} has submitted a registration request.`,
       "registration",
       "/dashboard/registrations",
       registration._id
-    );
+    ).catch(() => {});
 
     // Save test pricing separately
     if (formData.test && Array.isArray(formData.test)) {

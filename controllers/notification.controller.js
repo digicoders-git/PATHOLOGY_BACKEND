@@ -91,9 +91,5 @@ export const getUnreadCount = async (req, res) => {
 
 // Create notification (internal helper — also exposed as API)
 export const createNotification = async (title, message, type = "system", link = "", refId = null) => {
-  try {
-    await Notification.create({ title, message, type, link, refId });
-  } catch (err) {
-    console.error("NOTIFICATION_CREATE_ERROR:", err.message);
-  }
+  return Notification.create({ title, message, type, link, refId });
 };
