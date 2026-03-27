@@ -6,6 +6,7 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const XLSX = require('xlsx');
 import fs from "fs";
+import { createNotification } from "./notification.controller.js";
 
 // Helper to get local URL path
 const getLocalUrl = (req, file) => {
@@ -135,6 +136,15 @@ export const createRegistration = async (req, res) => {
     // console.log("Saving Registration with data:", JSON.stringify(formData, null, 2));
 
     const registration = await Registration.create(formData);
+
+    // Auto notification
+    createNotification(
+      "New Lab Registration",
+      `${formData.labName || "A new lab"} has submitted a registration request.`,
+      "registration",
+      "/dashboard/registrations",
+      registration._id
+    );
 
     // Save test pricing separately
     if (formData.test && Array.isArray(formData.test)) {

@@ -2,6 +2,7 @@ import Booking from "../model/booking.model.js";
 import TestBooking from "../model/testBooking.model.js";
 import LabTestPricing from "../model/labTestPricing.model.js";
 import TestService from "../model/testService.model.js";
+import { createNotification } from "./notification.controller.js";
 
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
@@ -63,6 +64,15 @@ export const createBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Auto notification
+    createNotification(
+      "New Booking Created",
+      `A new test booking has been placed.`,
+      "booking",
+      "/dashboard/bookings",
+      newBooking._id
+    );
 
     res.status(201).json({
       success: true,

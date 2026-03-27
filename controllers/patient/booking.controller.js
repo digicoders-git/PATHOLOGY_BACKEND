@@ -2,6 +2,7 @@ import LabSlot from "../../model/labSlot.model.js";
 import TestBooking from "../../model/testBooking.model.js";
 import LabTestPricing from "../../model/labTestPricing.model.js";
 import mongoose from "mongoose";
+import { createNotification } from "../notification.controller.js";
 
 /**
  * Get available slots for a lab on a specific date
@@ -85,6 +86,15 @@ export const bookTest = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    // Auto notification
+    createNotification(
+      "New App Booking",
+      `A patient has booked a test via the app.`,
+      "booking",
+      "/dashboard/bookings",
+      booking._id
+    );
 
     // Populate details for confirmation screen
     const confirmedBooking = await TestBooking.findById(booking._id)

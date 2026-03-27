@@ -21,6 +21,7 @@ import categoryRoutes from './routes/admin/category.routes.js';
 import subcategoryRoutes from './routes/admin/subcategory.routes.js';
 import planRouter from './routes/plan.routes.js';
 import bookingRouter from './routes/booking.routes.js';
+import notificationRouter from './routes/notification.routes.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -95,6 +96,7 @@ app.use('/subcategories', subcategoryRoutes)
 app.use('/tests', testServiceRouter)
 app.use('/plans', planRouter)
 app.use('/booking', bookingRouter)
+app.use('/notifications', notificationRouter)
 
 // 404 handler
 app.use((req, res) =>
