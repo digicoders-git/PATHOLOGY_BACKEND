@@ -109,19 +109,23 @@ export const getAllOffers = async (req, res) => {
 export const getActiveOffers = async (req, res) => {
   try {
     const { offerType, labId } = req.query;
-    const query = { status: true };
-    if (offerType) query.offerType = offerType;
-    // If labId provided → return that lab's offers, else return admin offers (labId: null)
-    if (labId) query.labId = labId;
-    else query.labId = null;
-
     const now = new Date();
-    query.$or = [
-      { validFrom: null, validTo: null },
-      { validFrom: { $lte: now }, validTo: { $gte: now } },
-      { validFrom: null, validTo: { $gte: now } },
-      { validFrom: { $lte: now }, validTo: null },
-    ];
+
+    const query = {
+      status: true,
+      labId: labId || null,
+      $and: [
+        offerType ? { offerType } : {},
+        {
+          $or: [
+            { validFrom: null, validTo: null },
+            { validFrom: { $lte: now }, validTo: { $gte: now } },
+            { validFrom: null, validTo: { $gte: now } },
+            { validFrom: { $lte: now }, validTo: null },
+          ],
+        },
+      ],
+    };
 
     const offers = await Offer.find(query).sort({ sortOrder: 1, createdAt: -1 });
     res.status(200).json({ success: true, data: offers });
