@@ -7,6 +7,7 @@ import {
   updateBookingStatus,
   uploadReport,
   deleteBooking,
+  downloadReport,
 } from "../controllers/booking.controller.js";
 import { patientAuth } from "../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
@@ -53,5 +54,8 @@ router.post("/upload-report/:id", pathologyAuth, upload.single("testReport"), up
 
 // 6. Delete (Admin Only)
 router.delete("/:id", verifyAdminToken, deleteBooking);
+
+// 7. Download Report (Patient Only — verifies ownership)
+router.get("/download-report/:id", patientAuth, downloadReport);
 
 export default router;

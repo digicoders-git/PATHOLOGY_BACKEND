@@ -3,6 +3,8 @@ import TestBooking from "../model/testBooking.model.js";
 import LabTestPricing from "../model/labTestPricing.model.js";
 import TestService from "../model/testService.model.js";
 import { createNotification } from "./notification.controller.js";
+import path from "path";
+import fs from "fs";
 
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
@@ -320,5 +322,41 @@ export const deleteBooking = async (req, res) => {
   } catch (error) {
     console.error("DELETE_BOOKING_ERROR:", error);
     res.status(500).json({ success: false, message: "Deletion failed: " + error.message });
+  }
+};
+
+// 7. Download Report — Patient only (verifies ownership)
+export const downloadReport = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const patientId = req.user.id;
+
+    // Check in Booking (direct)
+    let booking = await Booking.findOne({ _id: id, patient: patientId });
+    let reportFile = booking?.reportFile;
+
+    // Check in TestBooking (app) if not found above
+    if (!booking) {
+      const testBooking = await TestBooking.findOne({ _id: id, patientId });
+      reportFile = testBooking?.reportFile;
+      if (!testBooking) {
+        return res.status(403).json({ success: false, message: "Unauthorized: This report does not belong to you" });
+      }
+    }
+
+    if (!reportFile) {
+      return res.status(404).json({ success: false, message: "Report not uploaded yet" });
+    }
+
+    const filePath = path.join(process.cwd(), reportFile);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ success: false, message: "Report file not found on server" });
+    }
+
+    res.download(filePath);
+  } catch (error) {
+    console.error("DOWNLOAD_REPORT_ERROR:", error);
+    res.status(500).json({ success: false, message: "Download failed: " + error.message });
   }
 };

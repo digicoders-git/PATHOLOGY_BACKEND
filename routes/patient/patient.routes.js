@@ -1,6 +1,7 @@
 import express from "express";
 import { sendOtp, verifyOtp, updateProfile, getProfile, updateStatus, getAllPatients, getAllTestPricingForPatient } from "../../controllers/patient/patient.controller.js";
 import { getAvailableSlots, bookTest, getMyBookings } from "../../controllers/patient/booking.controller.js";
+import { downloadReport } from "../../controllers/booking.controller.js";
 import { patientAuth, patientAdminAuth } from "../../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../../middleware/verifyAdminToken.js";
 import upload from "../../middleware/multer.js";
@@ -18,6 +19,7 @@ router.get("/profile", patientAuth, getProfile);
 router.put("/update-profile", patientAdminAuth, upload.single('profilePhoto'), updateProfile);
 router.post("/book-test", patientAuth, bookTest);
 router.get("/my-bookings", patientAuth, getMyBookings);
+router.get("/download-report/:id", patientAuth, downloadReport);
 
 // Admin only routes
 router.get("/all-patients", verifyAdminToken, getAllPatients);
