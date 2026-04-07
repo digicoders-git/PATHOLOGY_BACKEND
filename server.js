@@ -43,6 +43,8 @@ app.use(helmet({
 const allowedOrigins = [
   'https://www.laboindia.com',
   'https://laboindia.com',
+  'https://admin.laboindia.com',
+  'https://www.admin.laboindia.com',
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
