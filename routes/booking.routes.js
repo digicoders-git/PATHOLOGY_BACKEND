@@ -48,9 +48,8 @@ router.get("/get/:id", combinedAuth, getBookingById);
 // 4. Update Status (System Admin / Lab Owner)
 router.put("/status/:id", combinedAuth, updateBookingStatus);
 
-// 5. Upload Test Report (Admin / Lab Owner Only)
-// Field name in Postman should be 'testReport'
-router.post("/upload-report/:id", pathologyAuth, upload.single("testReport"), uploadReport);
+// 5. Upload Test Report (Admin Only from admin panel)
+router.post("/upload-report/:id", verifyAdminToken, upload.single("testReport"), uploadReport);
 
 // 6. Delete (Admin Only)
 router.delete("/:id", verifyAdminToken, deleteBooking);

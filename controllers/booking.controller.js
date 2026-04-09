@@ -261,54 +261,42 @@ export const updateBookingStatus = async (req, res) => {
   }
 };
 
-// 6. Upload Test Report (Lab Owner / Admin)
+// 6. Upload Test Report (Admin / Lab Owner)
 export const uploadReport = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const labId = req.user.id; // From pathologyAuth
+  try {
+    const { id } = req.params;
 
-        // Find booking first to check ownership
-        const bookingCheck = await Booking.findById(id);
-        if (!bookingCheck) {
-            return res.status(404).json({ success: false, message: "Booking not found" });
-        }
-
-        // Security Check: Is this lab authorised to upload for this booking?
-        if (bookingCheck.registration.toString() !== labId.toString()) {
-            return res.status(403).json({ success: false, message: "Unauthorized: You can only upload reports for your own lab bookings." });
-        }
-
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: "No report file provided" });
-        }
-
-        const reportPath = req.file.path.replace(/\\/g, "/"); // Standardize path
-
-        const booking = await Booking.findByIdAndUpdate(
-            id,
-            { 
-                $set: { 
-                    reportFile: reportPath,
-                    reportUploadedAt: new Date(),
-                    status: "Completed", // Auto set to completed on report upload
-                } 
-            },
-            { new: true }
-        );
-
-        if (!booking) {
-            return res.status(404).json({ success: false, message: "Booking not found" });
-        }
-
-        res.status(200).json({ 
-            success: true, 
-            message: "Report uploaded and booking marked as Completed", 
-            data: booking 
-        });
-    } catch (error) {
-        console.error("UPLOAD_REPORT_ERROR:", error);
-        res.status(500).json({ success: false, message: "Upload failed: " + error.message });
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No report file provided" });
     }
+
+    const reportPath = req.file.path.replace(/\\/g, "/");
+
+    // Try Booking (direct) first
+    let booking = await Booking.findById(id);
+    if (booking) {
+      booking.reportFile = reportPath;
+      booking.reportUploadedAt = new Date();
+      booking.status = "Completed";
+      await booking.save();
+      return res.status(200).json({ success: true, message: "Report uploaded successfully", data: booking });
+    }
+
+    // Try TestBooking (app)
+    let testBooking = await TestBooking.findById(id);
+    if (testBooking) {
+      testBooking.reportFile = reportPath;
+      testBooking.reportStatus = "Uploaded";
+      testBooking.bookingStatus = "Completed";
+      await testBooking.save();
+      return res.status(200).json({ success: true, message: "Report uploaded successfully", data: testBooking });
+    }
+
+    return res.status(404).json({ success: false, message: "Booking not found" });
+  } catch (error) {
+    console.error("UPLOAD_REPORT_ERROR:", error);
+    res.status(500).json({ success: false, message: "Upload failed: " + error.message });
+  }
 };
 
 // 5. Delete Booking
