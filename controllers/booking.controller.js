@@ -221,9 +221,9 @@ export const getBookingById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
-    // Permission Check: If Patient, they can ONLY see their own booking
-    if (req.user && req.user.id && booking.patient._id.toString() !== req.user.id) {
-        return res.status(403).json({ success: false, message: "Unauthorized: You can only view your own bookings." });
+    // Permission Check: only if patient is populated and req.user exists
+    if (req.user && req.user.id && booking.patient && booking.patient._id.toString() !== req.user.id) {
+      return res.status(403).json({ success: false, message: "Unauthorized: You can only view your own bookings." });
     }
 
     res.status(200).json({ success: true, data: booking });
