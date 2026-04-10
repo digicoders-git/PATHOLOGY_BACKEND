@@ -187,7 +187,7 @@ export const createRegistration = async (req, res) => {
 
 export const getAllRegistrations = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", status, type, regType, source, parentId } = req.query;
+    const { page = 1, limit = 10, search = "", status, type, regType, source, parentId, featured } = req.query;
 
     const query = { $and: [] };
 
@@ -204,6 +204,10 @@ export const getAllRegistrations = async (req, res) => {
 
     if (status !== undefined && status !== "") {
       query.$and.push({ status: status === "true" || status === true });
+    }
+
+    if (featured !== undefined && featured !== "") {
+      query.$and.push({ isFeatured: featured === "true" });
     }
 
     if (type) {
