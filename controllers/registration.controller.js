@@ -755,7 +755,7 @@ export const bulkCreateRegistrations = async (req, res) => {
 
 export const getNearbyLabs = async (req, res) => {
   try {
-    const { lat, lng, distance = 10 } = req.query; // distance in KM
+    const { lat, lng, distance = 10, featured } = req.query;
 
     if (!lat || !lng) {
       return res.status(400).json({
@@ -768,22 +768,22 @@ export const getNearbyLabs = async (req, res) => {
     const longitude = parseFloat(lng);
     const radiusInMeter = parseFloat(distance) * 1000;
 
+    const matchQuery = { status: true };
+    if (featured === "true") matchQuery.isFeatured = true;
+
     const nearbyLabs = await Registration.aggregate([
       {
         $geoNear: {
-          near: {
-            type: "Point",
-            coordinates: [longitude, latitude],
-          },
+          near: { type: "Point", coordinates: [longitude, latitude] },
           distanceField: "distance_meter",
           maxDistance: radiusInMeter,
           spherical: true,
-          query: { status: true },
+          query: matchQuery,
         },
       },
       {
         $lookup: {
-          from: "labtestpricings", // verify collection name in DB, usually lowercase + s
+          from: "labtestpricings",
           localField: "_id",
           foreignField: "registration",
           as: "testPricing",
@@ -800,12 +800,29 @@ export const getNearbyLabs = async (req, res) => {
           "testPricing.addedBy": 0,
         },
       },
+      { $sort: { isFeatured: -1, distance_meter: 1 } },
     ]);
+
+    // Populate test details in testPricing
+    const TestService = (await import("../model/testService.model.js")).default;
+    const populated = await Promise.all(
+      nearbyLabs.map(async (lab) => {
+        const pricingWithTests = await Promise.all(
+          lab.testPricing.map(async (p) => {
+            const testDoc = await TestService.findById(p.test).select(
+              "title test_code image mrp price sample_type report_time fasting_required category_id"
+            );
+            return { ...p, test: testDoc };
+          })
+        );
+        return { ...lab, testPricing: pricingWithTests };
+      })
+    );
 
     res.status(200).json({
       success: true,
-      count: nearbyLabs.length,
-      data: nearbyLabs,
+      count: populated.length,
+      data: populated,
     });
   } catch (error) {
     console.error("NEARBY_LABS_ERROR:", error);
