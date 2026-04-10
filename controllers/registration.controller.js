@@ -219,14 +219,15 @@ export const getAllRegistrations = async (req, res) => {
     }
 
     // Filter by regType (Individual vs Parent)
-    if (regType === "individual") {
+    const normalizedRegType = regType?.toLowerCase().trim();
+    if (normalizedRegType === "individual") {
       query.$and.push({
         $or: [
           { parent: { $exists: false } },
           { parent: null }
         ]
       });
-    } else if (regType === "parent") {
+    } else if (normalizedRegType === "parent") {
       query.$and.push({ parent: { $ne: null, $exists: true } });
     }
 
@@ -271,9 +272,9 @@ export const getAllRegistrations = async (req, res) => {
         ]
       });
     }
-    if (regType === "individual") {
+    if (normalizedRegType === "individual") {
       tabStatsQuery.$and.push({ $or: [{ parent: { $exists: false } }, { parent: null }] });
-    } else if (regType === "parent") {
+    } else if (normalizedRegType === "parent") {
       tabStatsQuery.$and.push({ parent: { $ne: null, $exists: true } });
     }
     if (tabStatsQuery.$and.length === 0) delete tabStatsQuery.$and;
