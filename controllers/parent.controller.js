@@ -118,3 +118,85 @@ export const updateParentStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Get All Parents with their Labs (full details)
+export const getParentsWithLabs = async (req, res) => {
+  try {
+    const { search = "", status, page = 1, limit = 10 } = req.query;
+
+    const query = {};
+    if (search) query.name = { $regex: search, $options: "i" };
+    if (status !== undefined && status !== "") query.status = status === "true";
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const total = await Parent.countDocuments(query);
+
+    const parents = await Parent.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // For each parent, fetch its labs with full details
+    const result = await Promise.all(
+      parents.map(async (parent) => {
+        const labs = await Registration.find({ parent: parent._id })
+          .populate("selectedTests")
+          .sort({ isFeatured: -1, createdAt: -1 })
+          .select("-password");
+
+        return {
+          _id: parent._id,
+          name: parent.name,
+          status: parent.status,
+          createdAt: parent.createdAt,
+          updatedAt: parent.updatedAt,
+          labCount: labs.length,
+          labs,
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Get Single Parent with its Labs
+export const getParentWithLabsById = async (req, res) => {
+  try {
+    const parent = await Parent.findById(req.params.id);
+    if (!parent) {
+      return res.status(404).json({ success: false, message: "Parent not found" });
+    }
+
+    const labs = await Registration.find({ parent: parent._id })
+      .populate("selectedTests")
+      .sort({ isFeatured: -1, createdAt: -1 })
+      .select("-password");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        _id: parent._id,
+        name: parent.name,
+        status: parent.status,
+        createdAt: parent.createdAt,
+        updatedAt: parent.updatedAt,
+        labCount: labs.length,
+        labs,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
