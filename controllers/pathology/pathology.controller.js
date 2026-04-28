@@ -53,18 +53,14 @@ export const loginPathology = async (req, res) => {
 
     const token = generateToken(pathology._id);
 
+    const pathologyData = pathology.toObject();
+    delete pathologyData.password;
+
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
-      data: {
-        id: pathology._id,
-        labName: pathology.labName,
-        ownerName: pathology.ownerName,
-        phone: pathology.phone,
-        email: pathology.email,
-        labLogo: pathology.labLogo,
-      },
+      data: pathologyData,
     });
   } catch (error) {
     console.error("PATHOLOGY_LOGIN_ERROR:", error);
