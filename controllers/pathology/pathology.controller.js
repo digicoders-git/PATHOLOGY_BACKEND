@@ -193,3 +193,75 @@ export const updatePathologyProfile = async (req, res) => {
     });
   }
 };
+
+// 1. Get tests selected by the lab with their current pricing
+export const getMySelectedTests = async (req, res) => {
+  try {
+    const labId = req.user.id;
+    
+    // Get lab to see selected tests
+    const lab = await Registration.findById(labId).populate("selectedTests");
+    if (!lab) return res.status(404).json({ success: false, message: "Lab not found" });
+
+    // Get current pricings set by the lab
+    const pricings = await LabTestPricing.find({ registration: labId, isDeleted: false });
+
+    // Combine test details with lab-specific pricing
+    const combinedData = lab.selectedTests.map(test => {
+      const pricing = pricings.find(p => p.test && p.test.toString() === test._id.toString());
+      return {
+        _id: test._id,
+        title: test.title,
+        test_code: test.test_code,
+        image: test.image,
+        mrp: test.mrp,
+        lab_price: pricing ? pricing.price : test.price,
+        lab_discount_price: pricing ? pricing.discountPrice : test.price,
+        discountPercent: pricing ? pricing.discountPercent : "0%",
+        pricingId: pricing ? pricing._id : null
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: combinedData
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// 2. Update pricing for a single test
+export const updateSingleTestPricing = async (req, res) => {
+  try {
+    const labId = req.user.id;
+    const { testId, price, discountPrice, discountPercent } = req.body;
+
+    if (!testId) {
+      return res.status(400).json({ success: false, message: "testId is required" });
+    }
+
+    // Upsert pricing: Update if exists, create if not
+    const pricing = await LabTestPricing.findOneAndUpdate(
+      { registration: labId, test: testId },
+      { 
+        price, 
+        discountPrice, 
+        discountPercent: discountPercent || "",
+        addedBy: labId,
+        isDeleted: false,
+        status: true
+      },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Test pricing updated successfully",
+      data: pricing
+    });
+  } catch (error) {
+    console.error("Update Single Test Pricing Error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
