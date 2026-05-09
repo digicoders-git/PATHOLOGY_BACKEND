@@ -1,5 +1,5 @@
 import express from "express";
-import { loginPathology, getPathologyProfile } from "../../controllers/pathology/pathology.controller.js";
+import { loginPathology, getPathologyProfile, updatePathologyProfile } from "../../controllers/pathology/pathology.controller.js";
 import { getAllSlots, generateSlots, getLabSlots, deleteSlot } from "../../controllers/pathology/slot.controller.js";
 import { getMyLabBookings, updateBookingStatus, uploadTestReport } from "../../controllers/pathology/bookingManagement.controller.js";
 import { createLabOffer, updateLabOffer, getMyOffers, getActiveLabOffers, deleteLabOffer, toggleLabOfferStatus } from "../../controllers/pathology/labOffer.controller.js";
@@ -8,8 +8,15 @@ import upload from "../../middleware/multer.js";
 
 const router = express.Router();
 
+// Define multple file fields
+const cpUpload = upload.fields([
+  { name: "labLogo", maxCount: 1 },
+  { name: "labBanner", maxCount: 1 },
+]);
+
 router.post("/login", loginPathology);
 router.get("/profile", pathologyAuth, getPathologyProfile);
+router.put("/update-profile", pathologyAuth, cpUpload, updatePathologyProfile);
 
 // Slot Management
 router.get("/all-slots", getAllSlots);

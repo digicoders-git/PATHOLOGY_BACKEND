@@ -3,6 +3,13 @@ import LabTestPricing from "../../model/labTestPricing.model.js";
 import generateToken from "../../config/token.js";
 import bcrypt from "bcryptjs";
 
+// Helper to get local URL path
+const getLocalUrl = (req, file) => {
+  if (!file) return null;
+  const relativePath = file.path.replace(/\\/g, "/");
+  return `${req.protocol}://${req.get("host")}/${relativePath}`;
+};
+
 export const loginPathology = async (req, res) => {
   try {
     const { phone, password } = req.body;
@@ -96,5 +103,93 @@ export const getPathologyProfile = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updatePathologyProfile = async (req, res) => {
+  try {
+    const id = req.user.id;
+    const formData = { ...req.body };
+
+    // Check if phone or email already exists for another pathology
+    if (formData.phone || formData.email) {
+      const existingPathology = await Registration.findOne({
+        _id: { $ne: id },
+        $or: [
+          ...(formData.phone ? [{ phone: formData.phone }] : []),
+          ...(formData.email ? [{ email: formData.email }] : [])
+        ]
+      });
+
+      if (existingPathology) {
+        return res.status(400).json({
+          success: false,
+          message: "Phone or email already registered with another lab"
+        });
+      }
+    }
+
+    // Handle numbers
+    if (formData.establishmentYear === "") formData.establishmentYear = null;
+    if (formData.latitude) formData.latitude = Number(formData.latitude);
+    if (formData.longitude) formData.longitude = Number(formData.longitude);
+
+    if (formData.latitude && formData.longitude) {
+      formData.location = {
+        type: "Point",
+        coordinates: [Number(formData.longitude), Number(formData.latitude)]
+      };
+    }
+
+    // Handle files
+    if (req.files) {
+      if (req.files.labLogo) {
+        formData.labLogo = getLocalUrl(req, req.files.labLogo[0]);
+      }
+      if (req.files.labBanner) {
+        formData.labBanner = getLocalUrl(req, req.files.labBanner[0]);
+      }
+    }
+
+    // Parse JSON fields
+    try {
+      if (typeof formData.selectedTests === "string") {
+        formData.selectedTests = JSON.parse(formData.selectedTests);
+      }
+      if (typeof formData.Certification === "string") {
+        formData.Certification = JSON.parse(formData.Certification);
+      }
+    } catch (e) {
+      console.error("Parse error in pathology update:", e);
+    }
+
+    // Hash password if updating
+    if (formData.password) {
+      formData.password = await bcrypt.hash(formData.password, 10);
+    }
+
+    // Convert booleans
+    ['homeCollection', 'is24x7', 'emergency', 'ambulanceService'].forEach(key => {
+      if (formData[key] === "true") formData[key] = true;
+      if (formData[key] === "false") formData[key] = false;
+    });
+
+    const updated = await Registration.findByIdAndUpdate(id, formData, { new: true });
+
+    if (!updated) {
+      return res.status(404).json({ success: false, message: "Pathology not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: updated,
+    });
+  } catch (error) {
+    console.error("Pathology Update Error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update profile",
+    });
   }
 };
