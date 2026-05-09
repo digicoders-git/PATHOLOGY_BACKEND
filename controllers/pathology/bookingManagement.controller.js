@@ -9,18 +9,38 @@ import mongoose from "mongoose";
 export const getMyLabBookings = async (req, res) => {
   try {
     const labId = req.user.id;
-    const { status, search } = req.query;
+    const { status, search, today, date } = req.query;
 
     // Explicitly cast to ObjectId for safer querying
     const labObjectId = new mongoose.Types.ObjectId(labId);
 
-    // 1. Query from direct Booking model
+    // ── Build Filter Queries ─────────────────────────────────────
     let directQuery = { registration: labObjectId };
-    if (status) directQuery.status = status;
-
-    // 2. Query from app TestBooking model
     let appQuery = { labId: labObjectId };
-    if (status) appQuery.bookingStatus = status;
+
+    if (status) {
+      directQuery.status = status;
+      appQuery.bookingStatus = status;
+    }
+
+    // Date Filtering Logic
+    let filterDate = date;
+    if (today === "true") {
+      filterDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    }
+
+    if (filterDate) {
+      // For Booking model (Date field)
+      const startOfDay = new Date(filterDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(filterDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      directQuery.scheduledDate = { $gte: startOfDay, $lte: endOfDay };
+      
+      // For TestBooking model (String field YYYY-MM-DD)
+      appQuery.bookingDate = filterDate;
+    }
 
     const [directBookings, appBookings] = await Promise.all([
       Booking.find(directQuery)
