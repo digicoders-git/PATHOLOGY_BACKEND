@@ -88,34 +88,48 @@ export const getMyLabBookings = async (req, res) => {
 };
 
 /**
- * Update Booking Status (e.g. Confirm or Cancel)
+ * Update Booking Status (e.g. Confirm or Cancel) - Supports both systems
  */
 export const updateBookingStatus = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { bookingStatus } = req.body;
+    const { status } = req.body; // Using 'status' in body for consistency
     const labId = req.user.id;
 
-    const booking = await TestBooking.findOne({ _id: bookingId, labId });
+    if (!status) return res.status(400).json({ success: false, message: "status is required" });
 
-    if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found or unauthorized" });
+    // 1. Try to find and update in direct Booking model
+    let booking = await Booking.findOne({ _id: bookingId, registration: labId });
+    if (booking) {
+      booking.status = status;
+      await booking.save();
+      return res.json({
+        success: true,
+        message: `Website booking status updated to ${status}`,
+        data: booking
+      });
     }
 
-    booking.bookingStatus = bookingStatus;
+    // 2. Try to find and update in app TestBooking model
+    let appBooking = await TestBooking.findOne({ _id: bookingId, labId });
+    if (appBooking) {
+      appBooking.bookingStatus = status;
 
-    // If cancelled, free up the slot
-    if (bookingStatus === "Cancelled") {
-      await LabSlot.findByIdAndUpdate(booking.slotId, { isBooked: false });
+      // If cancelled, free up the slot
+      if (status === "Cancelled" && appBooking.slotId) {
+        await LabSlot.findByIdAndUpdate(appBooking.slotId, { isBooked: false });
+      }
+
+      await appBooking.save();
+      return res.json({
+        success: true,
+        message: `App booking status updated to ${status}`,
+        data: appBooking
+      });
     }
 
-    await booking.save();
+    return res.status(404).json({ success: false, message: "Booking not found or unauthorized" });
 
-    res.json({
-      success: true,
-      message: `Booking status updated to ${bookingStatus}`,
-      data: booking
-    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
