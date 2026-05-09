@@ -1,33 +1,81 @@
 import TestBooking from "../../model/testBooking.model.js";
+import Booking from "../../model/booking.model.js";
 import LabSlot from "../../model/labSlot.model.js";
 
 /**
- * Get all bookings for the logged-in Pathology Lab
+ * Get all bookings for the logged-in Pathology Lab (Merged from both systems)
  */
 export const getMyLabBookings = async (req, res) => {
   try {
-    const labId = req.user.id; // From pathologyAuth middleware
-    const { status, bookingId, date } = req.query;
+    const labId = req.user.id;
+    const { status, bookingId, search } = req.query;
 
-    let query = { labId };
+    // 1. Query from direct Booking model
+    let directQuery = { registration: labId };
+    if (status) directQuery.status = status;
 
-    if (status) query.bookingStatus = status;
-    if (bookingId) query.bookingId = { $regex: bookingId, $options: "i" };
-    if (date) query.bookingDate = date;
+    // 2. Query from app TestBooking model
+    let appQuery = { labId };
+    if (status) appQuery.bookingStatus = status;
 
-    const bookings = await TestBooking.find(query)
-      .populate("patientId", "name mobile email age gender")
-      .populate({
-        path: "labTestPricingId",
-        populate: { path: "test", select: "title" }
-      })
-      .populate("slotId")
-      .sort({ createdAt: -1 });
+    const [directBookings, appBookings] = await Promise.all([
+      Booking.find(directQuery)
+        .populate("patient", "name mobile email")
+        .populate("tests.test", "title")
+        .sort({ createdAt: -1 }),
+      TestBooking.find(appQuery)
+        .populate("patientId", "name mobile email")
+        .populate({
+          path: "labTestPricingId",
+          populate: { path: "test", select: "title" }
+        })
+        .populate("slotId")
+        .sort({ createdAt: -1 })
+    ]);
+
+    // Normalize direct bookings
+    const normalizedDirect = directBookings.map(b => ({
+      _id: b._id,
+      source: "Website",
+      bookingId: b._id.toString().slice(-8).toUpperCase(),
+      patient: b.patient,
+      tests: b.tests.map(t => ({ title: t.test?.title || "Test" })),
+      date: b.scheduledDate || b.createdAt,
+      status: b.status,
+      amount: b.finalAmount,
+      paymentMethod: b.paymentMethod,
+      createdAt: b.createdAt
+    }));
+
+    // Normalize app bookings
+    const normalizedApp = appBookings.map(b => ({
+      _id: b._id,
+      source: "App",
+      bookingId: b.bookingId,
+      patient: b.patientId,
+      tests: [{ title: b.labTestPricingId?.test?.title || "Test" }],
+      date: b.bookingDate,
+      status: b.bookingStatus,
+      amount: b.amount,
+      paymentMethod: b.paymentMode,
+      createdAt: b.createdAt
+    }));
+
+    let merged = [...normalizedDirect, ...normalizedApp].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    // Optional Search filter
+    if (search) {
+        const q = search.toLowerCase();
+        merged = merged.filter(b => 
+            b.patient?.name?.toLowerCase().includes(q) || 
+            b.bookingId?.toLowerCase().includes(q)
+        );
+    }
 
     res.json({
       success: true,
-      count: bookings.length,
-      data: bookings,
+      count: merged.length,
+      data: merged,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
