@@ -120,6 +120,51 @@ export const getMyLabBookings = async (req, res) => {
 };
 
 /**
+ * Get Full Details of a Single Booking
+ */
+export const getSingleBookingDetails = async (req, res) => {
+  try {
+    const { bookingId } = req.params;
+    const labId = req.user.id;
+
+    // 1. Check in Website Booking model
+    let booking = await Booking.findOne({ _id: bookingId, registration: labId })
+      .populate("patient", "name mobile email age gender address")
+      .populate("tests.test");
+
+    if (booking) {
+      return res.json({
+        success: true,
+        source: "Website",
+        data: booking
+      });
+    }
+
+    // 2. Check in App TestBooking model
+    let appBooking = await TestBooking.findOne({ _id: bookingId, labId })
+      .populate("patientId", "name mobile email age gender")
+      .populate({
+        path: "labTestPricingId",
+        populate: { path: "test" }
+      })
+      .populate("slotId");
+
+    if (appBooking) {
+      return res.json({
+        success: true,
+        source: "App",
+        data: appBooking
+      });
+    }
+
+    return res.status(404).json({ success: false, message: "Booking not found or unauthorized" });
+
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
  * Update Booking Status (e.g. Confirm or Cancel) - Supports both systems
  */
 export const updateBookingStatus = async (req, res) => {

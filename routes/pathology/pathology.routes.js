@@ -1,7 +1,7 @@
 import express from "express";
 import { loginPathology, getPathologyProfile, updatePathologyProfile, getMySelectedTests, updateSingleTestPricing } from "../../controllers/pathology/pathology.controller.js";
 import { getAllSlots, generateSlots, getLabSlots, deleteSlot } from "../../controllers/pathology/slot.controller.js";
-import { getMyLabBookings, updateBookingStatus, uploadTestReport } from "../../controllers/pathology/bookingManagement.controller.js";
+import { getMyLabBookings, updateBookingStatus, uploadTestReport, getSingleBookingDetails } from "../../controllers/pathology/bookingManagement.controller.js";
 import { createLabOffer, updateLabOffer, getMyOffers, getActiveLabOffers, deleteLabOffer, toggleLabOfferStatus } from "../../controllers/pathology/labOffer.controller.js";
 import { pathologyAuth } from "../../middleware/pathologyAuth.middleware.js";
 import upload from "../../middleware/multer.js";
@@ -28,6 +28,7 @@ router.delete("/delete-slot/:id", deleteSlot);
 
 // Booking Management
 router.get("/my-bookings", pathologyAuth, getMyLabBookings);
+router.get("/booking-details/:bookingId", pathologyAuth, getSingleBookingDetails);
 router.patch("/update-booking-status/:bookingId", pathologyAuth, updateBookingStatus);
 router.post("/upload-report/:bookingId", pathologyAuth, upload.single("testReport"), uploadTestReport);
 
