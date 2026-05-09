@@ -1,6 +1,7 @@
 import TestBooking from "../../model/testBooking.model.js";
 import Booking from "../../model/booking.model.js";
 import LabSlot from "../../model/labSlot.model.js";
+import mongoose from "mongoose";
 
 /**
  * Get all bookings for the logged-in Pathology Lab (Merged from both systems)
@@ -8,14 +9,17 @@ import LabSlot from "../../model/labSlot.model.js";
 export const getMyLabBookings = async (req, res) => {
   try {
     const labId = req.user.id;
-    const { status, bookingId, search } = req.query;
+    const { status, search } = req.query;
+
+    // Explicitly cast to ObjectId for safer querying
+    const labObjectId = new mongoose.Types.ObjectId(labId);
 
     // 1. Query from direct Booking model
-    let directQuery = { registration: labId };
+    let directQuery = { registration: labObjectId };
     if (status) directQuery.status = status;
 
     // 2. Query from app TestBooking model
-    let appQuery = { labId };
+    let appQuery = { labId: labObjectId };
     if (status) appQuery.bookingStatus = status;
 
     const [directBookings, appBookings] = await Promise.all([
@@ -78,6 +82,7 @@ export const getMyLabBookings = async (req, res) => {
       data: merged,
     });
   } catch (error) {
+    console.error("GET_MY_LAB_BOOKINGS_ERROR:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
