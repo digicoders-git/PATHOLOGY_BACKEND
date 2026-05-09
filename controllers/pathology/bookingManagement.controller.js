@@ -9,7 +9,7 @@ import mongoose from "mongoose";
 export const getMyLabBookings = async (req, res) => {
   try {
     const labId = req.user.id;
-    const { status, search, today, date } = req.query;
+    const { status, search, today, date, created_today } = req.query;
 
     // Explicitly cast to ObjectId for safer querying
     const labObjectId = new mongoose.Types.ObjectId(labId);
@@ -23,23 +23,35 @@ export const getMyLabBookings = async (req, res) => {
       appQuery.bookingStatus = status;
     }
 
-    // Date Filtering Logic
+    // Get Today's Date in YYYY-MM-DD format (Local Server Time)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+    // 1. Filter by Appointment/Scheduled Date
     let filterDate = date;
     if (today === "true") {
-      filterDate = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      filterDate = todayStr;
     }
 
     if (filterDate) {
-      // For Booking model (Date field)
       const startOfDay = new Date(filterDate);
       startOfDay.setHours(0, 0, 0, 0);
       const endOfDay = new Date(filterDate);
       endOfDay.setHours(23, 59, 59, 999);
       
       directQuery.scheduledDate = { $gte: startOfDay, $lte: endOfDay };
-      
-      // For TestBooking model (String field YYYY-MM-DD)
       appQuery.bookingDate = filterDate;
+    }
+
+    // 2. Filter by Creation Date (New Filter)
+    if (created_today === "true") {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+
+      directQuery.createdAt = { $gte: startOfToday, $lte: endOfToday };
+      appQuery.createdAt = { $gte: startOfToday, $lte: endOfToday };
     }
 
     const [directBookings, appBookings] = await Promise.all([
