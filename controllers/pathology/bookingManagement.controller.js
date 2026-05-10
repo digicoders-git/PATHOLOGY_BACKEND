@@ -213,7 +213,7 @@ export const updateBookingStatus = async (req, res) => {
 };
 
 /**
- * Upload Report and Complete Booking
+ * Upload Report and Complete Booking (Supports both systems)
  */
 export const uploadTestReport = async (req, res) => {
   try {
@@ -226,26 +226,44 @@ export const uploadTestReport = async (req, res) => {
 
     const reportPath = `uploads/reports/${req.file.filename}`;
 
-    const booking = await TestBooking.findOne({ _id: bookingId, labId });
-
-    if (!booking) {
-      return res.status(404).json({ success: false, message: "Booking not found" });
+    // 1. Try to find and update in direct Booking model
+    let booking = await Booking.findOne({ _id: bookingId, registration: labId });
+    if (booking) {
+      if (booking.status !== "Completed") {
+        return res.status(400).json({ success: false, message: "Please mark the booking as Completed before uploading the report" });
+      }
+      booking.reportFile = reportPath;
+      booking.reportUploadedAt = new Date();
+      booking.reportStatus = "Uploaded";
+      booking.status = "Completed";
+      await booking.save();
+      return res.json({
+        success: true,
+        message: "Report uploaded and direct booking completed",
+        data: booking
+      });
     }
 
-    booking.reportStatus = "Uploaded";
-    booking.bookingStatus = "Completed";
-    // Assuming you might want to store the report link in the booking or a separate field
-    // For now, let's assume we add a 'reportFile' field to the schema or just use this logic
-    booking.reportFile = reportPath;
+    // 2. Try to find and update in app TestBooking model
+    let appBooking = await TestBooking.findOne({ _id: bookingId, labId });
+    if (appBooking) {
+      if (appBooking.bookingStatus !== "Completed") {
+        return res.status(400).json({ success: false, message: "Please mark the booking as Completed before uploading the report" });
+      }
+      appBooking.reportFile = reportPath;
+      appBooking.reportStatus = "Uploaded";
+      appBooking.bookingStatus = "Completed";
+      await appBooking.save();
+      return res.json({
+        success: true,
+        message: "Report uploaded and app booking completed",
+        data: appBooking
+      });
+    }
 
-    await booking.save();
-
-    res.json({
-      success: true,
-      message: "Report uploaded and booking completed",
-      data: booking
-    });
+    return res.status(404).json({ success: false, message: "Booking not found or unauthorized" });
   } catch (error) {
+    console.error("UPLOAD_TEST_REPORT_ERROR:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

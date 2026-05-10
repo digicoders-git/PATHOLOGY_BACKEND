@@ -102,6 +102,41 @@ export const getAllBookings = async (req, res) => {
       newFilter.bookingStatus = status;
     }
 
+    const { today, date, created_today } = req.query;
+
+    // Get Today's Date in YYYY-MM-DD format (Local Server Time)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+      now.getDate()
+    ).padStart(2, "0")}`;
+
+    // 1. Filter by Appointment/Scheduled Date
+    let filterDate = date;
+    if (today === "true") {
+      filterDate = todayStr;
+    }
+
+    if (filterDate) {
+      const startOfDay = new Date(filterDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(filterDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      oldFilter.scheduledDate = { $gte: startOfDay, $lte: endOfDay };
+      newFilter.bookingDate = filterDate;
+    }
+
+    // 2. Filter by Creation Date
+    if (created_today === "true") {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const endOfToday = new Date();
+      endOfToday.setHours(23, 59, 59, 999);
+
+      oldFilter.createdAt = { $gte: startOfToday, $lte: endOfToday };
+      newFilter.createdAt = { $gte: startOfToday, $lte: endOfToday };
+    }
+
     // ── Fetch both collections in parallel ─────────────────────
     const [oldBookings, newBookings] = await Promise.all([
       Booking.find(oldFilter)
@@ -275,8 +310,12 @@ export const uploadReport = async (req, res) => {
     // Try Booking (direct) first
     let booking = await Booking.findById(id);
     if (booking) {
+      if (booking.status !== "Completed") {
+        return res.status(400).json({ success: false, message: "Please mark the booking as Completed before uploading the report" });
+      }
       booking.reportFile = reportPath;
       booking.reportUploadedAt = new Date();
+      booking.reportStatus = "Uploaded";
       booking.status = "Completed";
       await booking.save();
       return res.status(200).json({ success: true, message: "Report uploaded successfully", data: booking });
@@ -285,6 +324,9 @@ export const uploadReport = async (req, res) => {
     // Try TestBooking (app)
     let testBooking = await TestBooking.findById(id);
     if (testBooking) {
+      if (testBooking.bookingStatus !== "Completed") {
+        return res.status(400).json({ success: false, message: "Please mark the booking as Completed before uploading the report" });
+      }
       testBooking.reportFile = reportPath;
       testBooking.reportStatus = "Uploaded";
       testBooking.bookingStatus = "Completed";

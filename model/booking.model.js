@@ -71,6 +71,11 @@ const bookingSchema = new mongoose.Schema(
     reportFile: {
       type: String, // Path to the PDF report
     },
+    reportStatus: {
+      type: String,
+      enum: ["Pending", "Processing", "Uploaded", "NA"],
+      default: "Pending",
+    },
     reportUploadedAt: {
       type: Date,
     },
