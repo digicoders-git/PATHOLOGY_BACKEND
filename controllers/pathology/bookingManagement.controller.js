@@ -1,5 +1,6 @@
 import TestBooking from "../../model/testBooking.model.js";
 import Booking from "../../model/booking.model.js";
+import Patient from "../../model/patient/patient.model.js";
 import LabSlot from "../../model/labSlot.model.js";
 import mongoose from "mongoose";
 
@@ -246,7 +247,13 @@ export const getLabReports = async (req, res) => {
       _id: b._id,
       source: "Website",
       bookingId: b._id.toString().slice(-8).toUpperCase(),
-      patient: b.patient,
+      patient: b.patient ? {
+        name: b.patient.name || "N/A",
+        mobile: b.patient.mobile || "N/A",
+        email: b.patient.email || "N/A",
+        age: b.patient.age || 0,
+        gender: b.patient.gender || "N/A"
+      } : { name: "Patient Not Found", mobile: "N/A" },
       tests: b.tests.map(t => ({ title: t.test?.title || "Test" })),
       reportFile: b.reportFile,
       uploadedAt: b.reportUploadedAt || b.updatedAt,
@@ -258,7 +265,13 @@ export const getLabReports = async (req, res) => {
       _id: b._id,
       source: "App",
       bookingId: b.bookingId,
-      patient: b.patientId,
+      patient: b.patientId ? {
+        name: b.patientId.name || "N/A",
+        mobile: b.patientId.mobile || "N/A",
+        email: b.patientId.email || "N/A",
+        age: b.patientId.age || 0,
+        gender: b.patientId.gender || "N/A"
+      } : { name: "Patient Not Found", mobile: "N/A" },
       tests: [{ title: b.labTestPricingId?.test?.title || "Test" }],
       reportFile: b.reportFile,
       uploadedAt: b.updatedAt,
