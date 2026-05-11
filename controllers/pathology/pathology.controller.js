@@ -1,7 +1,10 @@
 import Registration from "../../model/registration.model.js";
 import LabTestPricing from "../../model/labTestPricing.model.js";
+import Booking from "../../model/booking.model.js";
+import TestBooking from "../../model/testBooking.model.js";
 import generateToken from "../../config/token.js";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 
 // Helper to get local URL path
 const getLocalUrl = (req, file) => {
@@ -263,5 +266,75 @@ export const updateSingleTestPricing = async (req, res) => {
   } catch (error) {
     console.error("Update Single Test Pricing Error:", error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+// 3. Get Lab Dashboard Analytics (Total bookings, completed, total tests, etc.)
+export const getLabDashboardData = async (req, res) => {
+  try {
+    const labId = req.user.id;
+    const labObjectId = new mongoose.Types.ObjectId(labId);
+
+    // 1. Get Lab Details & Test Count
+    const lab = await Registration.findById(labId)
+      .populate("parent")
+      .select("-password");
+
+    if (!lab) {
+      return res.status(404).json({ success: false, message: "Lab not found" });
+    }
+
+    // 2. Get Counts from Both Systems (Website & App)
+    const [
+      directTotal,
+      directCompleted,
+      appTotal,
+      appCompleted
+    ] = await Promise.all([
+      Booking.countDocuments({ registration: labObjectId }),
+      Booking.countDocuments({ registration: labObjectId, status: "Completed" }),
+      TestBooking.countDocuments({ labId: labObjectId }),
+      TestBooking.countDocuments({ labId: labObjectId, bookingStatus: "Completed" })
+    ]);
+
+    // 3. Calculate Aggregated Stats
+    const totalBookings = directTotal + appTotal;
+    const completedBookings = directCompleted + appCompleted;
+    const pendingBookings = totalBookings - completedBookings;
+    
+    // Total Tests is the length of selectedTests array in Registration
+    const totalTests = lab.selectedTests ? lab.selectedTests.length : 0;
+
+    res.status(200).json({
+      success: true,
+      message: "Dashboard analytics fetched successfully",
+      data: {
+        labDetails: lab,
+        stats: {
+          totalBookings,
+          completedBookings,
+          pendingBookings,
+          totalTests,
+          sourceBreakdown: {
+            website: {
+              total: directTotal,
+              completed: directCompleted,
+              pending: directTotal - directCompleted
+            },
+            app: {
+              total: appTotal,
+              completed: appCompleted,
+              pending: appTotal - appCompleted
+            }
+          }
+        }
+      }
+    });
+  } catch (error) {
+    console.error("GET_LAB_DASHBOARD_DATA_ERROR:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Error fetching dashboard analytics",
+      error: error.message 
+    });
   }
 };

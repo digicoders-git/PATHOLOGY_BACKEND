@@ -1,5 +1,5 @@
 import express from "express";
-import { loginPathology, getPathologyProfile, updatePathologyProfile, getMySelectedTests, updateSingleTestPricing } from "../../controllers/pathology/pathology.controller.js";
+import { loginPathology, getPathologyProfile, updatePathologyProfile, getMySelectedTests, updateSingleTestPricing, getLabDashboardData } from "../../controllers/pathology/pathology.controller.js";
 import { getAllSlots, generateSlots, getLabSlots, deleteSlot } from "../../controllers/pathology/slot.controller.js";
 import { getMyLabBookings, updateBookingStatus, uploadTestReport, getSingleBookingDetails } from "../../controllers/pathology/bookingManagement.controller.js";
 import { createLabOffer, updateLabOffer, getMyOffers, getActiveLabOffers, deleteLabOffer, toggleLabOfferStatus } from "../../controllers/pathology/labOffer.controller.js";
@@ -19,6 +19,7 @@ router.get("/profile", pathologyAuth, getPathologyProfile);
 router.put("/update-profile", pathologyAuth, cpUpload, updatePathologyProfile);
 router.get("/my-tests", pathologyAuth, getMySelectedTests);
 router.put("/update-test-pricing", pathologyAuth, updateSingleTestPricing);
+router.get("/dashboard-stats", pathologyAuth, getLabDashboardData);
 
 // Slot Management
 router.get("/all-slots", getAllSlots);
