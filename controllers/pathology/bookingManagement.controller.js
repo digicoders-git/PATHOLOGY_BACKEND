@@ -213,8 +213,74 @@ export const updateBookingStatus = async (req, res) => {
 };
 
 /**
- * Upload Report and Complete Booking (Supports both systems)
+ * Get all uploaded reports for the lab (Past & Present)
  */
+export const getLabReports = async (req, res) => {
+  try {
+    const labId = req.user.id;
+    const labObjectId = new mongoose.Types.ObjectId(labId);
+
+    // Fetch bookings from both systems where reportFile is present
+    const [directBookings, appBookings] = await Promise.all([
+      Booking.find({
+        registration: labObjectId,
+        reportFile: { $exists: true, $ne: "", $ne: null }
+      })
+      .populate("patient", "name mobile email age gender")
+      .sort({ reportUploadedAt: -1 }),
+      
+      TestBooking.find({
+        labId: labObjectId,
+        reportFile: { $exists: true, $ne: "", $ne: null }
+      })
+      .populate("patientId", "name mobile email age gender")
+      .populate({
+        path: "labTestPricingId",
+        populate: { path: "test", select: "title" }
+      })
+      .sort({ updatedAt: -1 })
+    ]);
+
+    // Normalize direct bookings
+    const normalizedDirect = directBookings.map(b => ({
+      _id: b._id,
+      source: "Website",
+      bookingId: b._id.toString().slice(-8).toUpperCase(),
+      patient: b.patient,
+      tests: b.tests.map(t => ({ title: t.test?.title || "Test" })),
+      reportFile: b.reportFile,
+      uploadedAt: b.reportUploadedAt || b.updatedAt,
+      status: b.status
+    }));
+
+    // Normalize app bookings
+    const normalizedApp = appBookings.map(b => ({
+      _id: b._id,
+      source: "App",
+      bookingId: b.bookingId,
+      patient: b.patientId,
+      tests: [{ title: b.labTestPricingId?.test?.title || "Test" }],
+      reportFile: b.reportFile,
+      uploadedAt: b.updatedAt,
+      status: b.bookingStatus
+    }));
+
+    // Merge and sort by upload date
+    const mergedReports = [...normalizedDirect, ...normalizedApp].sort(
+      (a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)
+    );
+
+    res.status(200).json({
+      success: true,
+      count: mergedReports.length,
+      data: mergedReports
+    });
+  } catch (error) {
+    console.error("GET_LAB_REPORTS_ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 export const uploadTestReport = async (req, res) => {
   try {
     const { bookingId } = req.params;
