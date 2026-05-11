@@ -29,6 +29,7 @@ router.delete("/delete-slot/:id", deleteSlot);
 
 // Booking Management
 router.get("/my-bookings", pathologyAuth, getMyLabBookings);
+router.get("/booking-details/:bookingId", pathologyAuth, getSingleBookingDetails);
 router.patch("/update-booking-status/:bookingId", pathologyAuth, updateBookingStatus);
 router.post("/upload-report/:bookingId", pathologyAuth, upload.single("testReport"), uploadTestReport);
 router.get("/all-reports", pathologyAuth, getLabReports);
