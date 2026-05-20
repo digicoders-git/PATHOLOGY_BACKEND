@@ -1,52 +1,33 @@
 import mongoose from "mongoose";
 
 const packageSchema = new mongoose.Schema(
-{
-  packageName: {
-    type: String,
-    required: true,
+  {
+    packageName: { type: String, required: true },
+    description: { type: String, default: "" },
+    price: { type: Number, required: true },
+    durationDays: { type: Number, required: true },   // plan validity in days
+    durationType: {
+      type: String,
+      enum: ["weekly", "monthly", "yearly", "custom"],
+      default: "monthly",
+    },
+
+    // Free bookings before plan purchase
+    freeBookingsLimit: { type: Number, default: 0 },
+
+    // Booking limits per period after plan purchase (0 = unlimited)
+    weeklyBookingLimit: { type: Number, default: 0 },
+    monthlyBookingLimit: { type: Number, default: 0 },
+    yearlyBookingLimit: { type: Number, default: 0 },
+
+    benefits: [{ type: String, trim: true }],
+    isPopular: { type: Boolean, default: false },
+    badgeText: { type: String, default: "" },
+    status: { type: Boolean, default: true },
+    isDeleted: { type: Boolean, default: false },
+    displayOrder: { type: Number, default: 0 },
   },
-
-  description: {
-    type: String,
-  },
-
-  category: {
-    type: String,
-  },
-
-  image: {
-    type: String,
-  },
-
-  tests: [
-    {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "TestService",
-    }
-  ],
-
-  actualPrice: {
-    type: Number,
-  },
-
-  discountPrice: {
-    type: Number,
-  },
-
-  status: {
-    type: Boolean,
-    default: true,
-  },
-
-  isDeleted: {
-    type: Boolean,
-    default: false,
-  }
-},
-{ timestamps: true }
+  { timestamps: true }
 );
 
-const Package = mongoose.model("Package", packageSchema);
-export default Package;
-
+export default mongoose.model("Package", packageSchema);

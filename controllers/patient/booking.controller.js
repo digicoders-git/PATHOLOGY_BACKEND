@@ -74,7 +74,7 @@ export const bookTest = async (req, res) => {
       amount: finalAmount,
       paymentMode: paymentMode || "Cash on Collection",
       paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
-      bookingStatus: "Confirmed",
+      bookingStatus: "Pending",  // ✅ Fixed - Initially Pending, lab will accept/decline
     };
 
     const booking = new TestBooking(bookingData);
@@ -107,7 +107,7 @@ export const bookTest = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Booking confirmed successfully",
+      message: "Booking created successfully. Waiting for lab confirmation.",
       data: confirmedBooking,
     });
   } catch (error) {

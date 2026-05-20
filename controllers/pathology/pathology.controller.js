@@ -61,7 +61,7 @@ export const loginPathology = async (req, res) => {
       });
     }
 
-    const token = generateToken(pathology._id);
+    const token = generateToken(pathology._id, pathology.role || "pathology");
 
     const pathologyData = pathology.toObject();
     delete pathologyData.password;

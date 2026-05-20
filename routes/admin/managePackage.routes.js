@@ -6,16 +6,42 @@ import {
   updatePackage,
   deletePackage,
   togglePackageStatus,
+  setFreeBookingsForLab,
+  getAllLabSubscriptions,
+  getMySubscription,
+  createPurchaseOrder,
+  verifyPaymentAndActivate,
+  acceptBooking,
+  declineBooking,
+  generateTestSignature,
 } from "../../controllers/admin/managePackage.controller.js";
+import { verifyAdminToken } from "../../middleware/verifyAdminToken.js";
+import { pathologyAuth } from "../../middleware/pathologyAuth.middleware.js";
 
-const managePackageRoutes = express.Router();
-import upload from "../../middleware/multer.js";
+const router = express.Router();
 
-managePackageRoutes.post("/create", upload.single("image"), createPackage);
-managePackageRoutes.get("/", getAllPackages);
-managePackageRoutes.get("/:id", getSinglePackage);
-managePackageRoutes.put("/:id", upload.single("image"), updatePackage);
-managePackageRoutes.delete("/:id", deletePackage);
-managePackageRoutes.patch("/status/:id", togglePackageStatus);
+// ── Admin: Package CRUD ───────────────────────────────────────────────────────
+router.post("/create", verifyAdminToken, createPackage);
+router.get("/", getAllPackages);                                    // Public — show on website/app
+router.get("/subscriptions", verifyAdminToken, getAllLabSubscriptions);
+router.get("/:id", getSinglePackage);
+router.put("/:id", verifyAdminToken, updatePackage);
+router.delete("/:id", verifyAdminToken, deletePackage);
+router.patch("/status/:id", verifyAdminToken, togglePackageStatus);
 
-export default managePackageRoutes;
+// ── Admin: Set free bookings for a specific lab ───────────────────────────────
+router.post("/set-free-bookings", verifyAdminToken, setFreeBookingsForLab);
+
+// ── Lab: Subscription ─────────────────────────────────────────────────────────
+router.get("/my/subscription", pathologyAuth, getMySubscription);
+router.post("/purchase/order", pathologyAuth, createPurchaseOrder);
+router.post("/purchase/verify", pathologyAuth, verifyPaymentAndActivate);
+
+// ── Lab: Booking Accept / Decline ─────────────────────────────────────────────
+router.post("/booking/accept", pathologyAuth, acceptBooking);
+router.post("/booking/decline", pathologyAuth, declineBooking);
+
+// ── Test Helper: Generate Signature (For Testing Only) ────────────────────────
+router.post("/test/generate-signature", generateTestSignature);
+
+export default router;

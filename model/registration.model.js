@@ -165,6 +165,11 @@ const registrationSchema = new mongoose.Schema(
       enum: ["website", "admin"],
       default: "website",
     },
+    role: {
+      type: String,
+      enum: ["pathology", "admin"],
+      default: "pathology",
+    },
   },
   { timestamps: true }
 );
