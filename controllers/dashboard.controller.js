@@ -74,3 +74,56 @@ export const getDashboardStats = async (req, res) => {
     });
   }
 };
+
+export const getSettings = async (req, res) => {
+  try {
+    const Setting = (await import("../model/settings.model.js")).default;
+    const settings = await Setting.find();
+    
+    const settingsObj = {};
+    settings.forEach(s => {
+      settingsObj[s.key] = s.value;
+    });
+
+    if (settingsObj.defaultFreeBookings === undefined) {
+      settingsObj.defaultFreeBookings = 10;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: settingsObj,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch settings: " + error.message,
+    });
+  }
+};
+
+export const updateSetting = async (req, res) => {
+  try {
+    const { key, value } = req.body;
+    if (!key) {
+      return res.status(400).json({ success: false, message: "key is required" });
+    }
+
+    const Setting = (await import("../model/settings.model.js")).default;
+    const setting = await Setting.findOneAndUpdate(
+      { key },
+      { value },
+      { new: true, upsert: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: `Setting ${key} updated successfully`,
+      data: setting,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to update setting: " + error.message,
+    });
+  }
+};

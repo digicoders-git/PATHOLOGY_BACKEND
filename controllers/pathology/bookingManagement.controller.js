@@ -171,10 +171,50 @@ export const getSingleBookingDetails = async (req, res) => {
 export const updateBookingStatus = async (req, res) => {
   try {
     const { bookingId } = req.params;
-    const { status } = req.body; // Using 'status' in body for consistency
+    const { status } = req.body;
     const labId = req.user.id;
 
     if (!status) return res.status(400).json({ success: false, message: "status is required" });
+
+    // Import Registration model
+    const Registration = (await import("../../model/registration.model.js")).default;
+
+    // Check if lab is trying to accept a booking
+    if (status === "Confirmed" || status === "Accepted") {
+      const lab = await Registration.findById(labId);
+      if (!lab) {
+        return res.status(404).json({ success: false, message: "Lab not found" });
+      }
+
+      // Get global default free bookings limit dynamically
+      let globalLimit = 10;
+      try {
+        const Setting = (await import("../../model/settings.model.js")).default;
+        const defaultSetting = await Setting.findOne({ key: "defaultFreeBookings" });
+        if (defaultSetting) {
+          globalLimit = Number(defaultSetting.value);
+        }
+      } catch (err) {
+        console.error("FAILED_TO_FETCH_SETTINGS_IN_BOOKINGS:", err);
+      }
+
+      const hasPurchasedPlans = lab.purchasedPlans && lab.purchasedPlans.length > 0;
+      const effectiveLimit = hasPurchasedPlans ? (lab.totalBookings - 5 + globalLimit) : globalLimit;
+
+      // Check if lab has available bookings
+      const remainingBookings = effectiveLimit - lab.usedBookings;
+      if (remainingBookings <= 0) {
+        return res.status(403).json({
+          success: false,
+          message: "You have exhausted your free bookings. Please purchase a plan to continue accepting bookings.",
+          needsPurchase: true
+        });
+      }
+
+      // Increment used bookings
+      lab.usedBookings += 1;
+      await lab.save();
+    }
 
     // 1. Try to find and update in direct Booking model
     let booking = await Booking.findOne({ _id: bookingId, registration: labId });

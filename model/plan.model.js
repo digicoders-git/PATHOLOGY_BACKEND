@@ -16,12 +16,27 @@ const planSchema = new mongoose.Schema({
   },
   priceLabel: {
     type: String,
-    default: "per month", // e.g. "per BuyLead" or "per year"
+    default: "per month",
     trim: true
   },
   badgeText: {
     type: String,
     trim: true
+  },
+  totalBookings: {
+    type: Number,
+    default: 0,
+    required: true
+  },
+  freeBookings: {
+    type: Number,
+    default: 0,
+    required: true
+  },
+  duration: {
+    type: Number,
+    default: 30,
+    required: true
   },
   features: [{
     type: String,

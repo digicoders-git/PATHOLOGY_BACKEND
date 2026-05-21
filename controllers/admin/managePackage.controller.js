@@ -192,14 +192,21 @@ export const getMySubscription = async (req, res) => {
     sub = await resetPeriodCounters(sub);
     await sub.populate("packageId");
 
+    let limit = sub.freeBookingsLimit;
+    if (!limit || limit === 0) {
+      const Setting = (await import("../../model/settings.model.js")).default;
+      const setting = await Setting.findOne({ key: "defaultFreeBookings" });
+      limit = setting ? Number(setting.value) : 10;
+    }
+
     res.status(200).json({
       success: true,
       data: {
         subscriptionStatus: sub.subscriptionStatus,
         package: sub.packageId,
-        freeBookingsLimit: sub.freeBookingsLimit,
+        freeBookingsLimit: limit,
         freeBookingsUsed: sub.freeBookingsUsed,
-        freeBookingsRemaining: Math.max(0, sub.freeBookingsLimit - sub.freeBookingsUsed),
+        freeBookingsRemaining: Math.max(0, limit - sub.freeBookingsUsed),
         planStartDate: sub.planStartDate,
         planEndDate: sub.planEndDate,
         bookingLimits: {
@@ -350,10 +357,16 @@ export const canLabAcceptBooking = async (labId) => {
 
   // Free tier — check free bookings
   if (sub.subscriptionStatus === "free") {
-    if (sub.freeBookingsLimit > 0 && sub.freeBookingsUsed >= sub.freeBookingsLimit)
-      return { allowed: false, reason: "Free booking limit reached. Please purchase a plan." };
-    if (sub.freeBookingsLimit === 0)
-      return { allowed: false, reason: "No free bookings assigned. Please purchase a plan." };
+    let limit = sub.freeBookingsLimit;
+    if (!limit || limit === 0) {
+      const Setting = (await import("../../model/settings.model.js")).default;
+      const setting = await Setting.findOne({ key: "defaultFreeBookings" });
+      limit = setting ? Number(setting.value) : 10;
+    }
+
+    if (sub.freeBookingsUsed >= limit) {
+      return { allowed: false, reason: `Free booking limit reached (${limit}). Please purchase a plan.` };
+    }
     return { allowed: true, reason: "Free tier" };
   }
 

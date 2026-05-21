@@ -170,6 +170,45 @@ const registrationSchema = new mongoose.Schema(
       enum: ["pathology", "admin"],
       default: "pathology",
     },
+    freeBookings: {
+      type: Number,
+      default: 5,
+    },
+    totalBookings: {
+      type: Number,
+      default: 5,
+    },
+    usedBookings: {
+      type: Number,
+      default: 0,
+    },
+    subscriptionExpiry: {
+      type: Date,
+      default: null,
+    },
+    purchasedPlans: [
+      {
+        planId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Plan",
+        },
+        purchaseDate: {
+          type: Date,
+          default: Date.now,
+        },
+        expiryDate: {
+          type: Date,
+        },
+        bookingsGranted: {
+          type: Number,
+        },
+        status: {
+          type: String,
+          enum: ["active", "expired"],
+          default: "active",
+        },
+      },
+    ],
   },
   { timestamps: true }
 );
