@@ -15,7 +15,6 @@ export const getNotifications = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
-
     res.json({
       success: true,
       data: notifications,
@@ -29,7 +28,7 @@ export const getNotifications = async (req, res) => {
   }
 };
 
-// Mark single notification as read
+// Mark single notification as read /////
 export const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
@@ -46,11 +45,13 @@ export const markAsRead = async (req, res) => {
   }
 };
 
+
+
 // Mark all as read
 export const markAllAsRead = async (req, res) => {
   try {
     await Notification.updateMany({ isRead: false }, { isRead: true });
-    res.json({ success: true, message: "All notifications marked as read" });
+    res.json({ success: true, message: "All notification marked as read" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
