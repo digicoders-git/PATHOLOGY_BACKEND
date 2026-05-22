@@ -3,6 +3,7 @@ import TestBooking from "../model/testBooking.model.js";
 import LabTestPricing from "../model/labTestPricing.model.js";
 import TestService from "../model/testService.model.js";
 import { createNotification } from "./notification.controller.js";
+import { sendNotificationToUser, sendNotificationToAdmins } from "../services/notificationService.js";
 import path from "path";
 import fs from "fs";
 
@@ -66,6 +67,55 @@ export const createBooking = async (req, res) => {
     });
 
     await newBooking.save();
+
+    // Get lab details for notification
+    const Registration = (await import("../model/registration.model.js")).default;
+    const lab = await Registration.findById(registration);
+    const Patient = (await import("../model/patient/patient.model.js")).default;
+    const patient = await Patient.findById(patientId);
+
+    // Get test names
+    const testNames = testItems.map(t => {
+      const found = testItems.find(i => i.test.toString() === t.test.toString());
+      return found?.title || '';
+    });
+    const populatedTests = await (await import('../model/testService.model.js')).default
+      .find({ _id: { $in: tests } }).select('title');
+    const testTitles = populatedTests.map(t => t.title).join(', ');
+
+    // Prepare notification data
+    const notificationData = {
+      type: 'new_booking',
+      bookingId: newBooking._id.toString(),
+      patientName: patient?.name || 'Unknown Patient',
+      patientPhone: patient?.mobile || patient?.phone || 'N/A',
+      labName: lab?.labName || 'Unknown Lab',
+      testNames: testTitles,
+      testCount: String(tests.length),
+      amount: String(newBooking.finalAmount),
+      scheduledDate: scheduledDate || '',
+      sampleCollectionType: sampleCollectionType || '',
+      paymentMethod: paymentMethod || '',
+      timestamp: new Date().toISOString()
+    };
+
+    // Send notification to Lab
+    if (lab && lab._id) {
+      await sendNotificationToUser(
+        lab._id.toString(),
+        '🔔 New Booking Received!',
+        `Patient: ${patient?.name || 'Patient'} | Tests: ${testTitles} | Amount: ₹${newBooking.finalAmount} | Date: ${scheduledDate}`,
+        notificationData,
+        'pathology'
+      ).catch(err => console.error('Error sending lab notification:', err));
+    }
+
+    // Send notification to all Admins
+    await sendNotificationToAdmins(
+      '🔔 New Booking Created',
+      `Lab: ${lab?.labName || 'Lab'} | Patient: ${patient?.name || 'Unknown'} | Tests: ${testTitles} | Amount: ₹${newBooking.finalAmount}`,
+      notificationData
+    ).catch(err => console.error('Error sending admin notification:', err));
 
     // Auto notification — fire and forget
     createNotification(

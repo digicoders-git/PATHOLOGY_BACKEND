@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import managePackageRoutes from './routes/admin/managePackage.routes.js';
 import patientRoutes from './routes/patient/patient.routes.js';
 import pathologyRoutes from './routes/pathology/pathology.routes.js';
+import labNotificationRoutes from './routes/pathology/labNotification.routes.js';
 import pathologyTestPricingRoutes from './routes/pathology/pathologyTestPricing.routes.js';
 import labTestPricingRouter from './routes/labTestPricing.routes.js';
 import categoryRoutes from './routes/admin/category.routes.js';
@@ -92,6 +93,7 @@ app.use('/dashboard', dashboardRouter)
 app.use('/manage-package', managePackageRoutes)
 app.use('/patient', patientRoutes)
 app.use('/pathology', pathologyRoutes)
+app.use('/pathology/notifications', labNotificationRoutes)
 app.use('/pathology-test-pricing', pathologyTestPricingRoutes)
 app.use('/lab-test-pricing', labTestPricingRouter)
 app.use('/categories', categoryRoutes)
@@ -99,6 +101,7 @@ app.use('/subcategories', subcategoryRoutes)
 app.use('/tests', testServiceRouter)
 app.use('/plans', planRouter)
 app.use('/booking', bookingRouter)
+app.use('/api/notifications', notificationRouter)
 app.use('/notifications', notificationRouter)
 app.use('/offers', offerRouter)
 

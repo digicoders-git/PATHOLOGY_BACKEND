@@ -3,6 +3,7 @@ import TestBooking from "../../model/testBooking.model.js";
 import LabTestPricing from "../../model/labTestPricing.model.js";
 import mongoose from "mongoose";
 import { createNotification } from "../notification.controller.js";
+import { sendNotificationToUser, sendNotificationToAdmins } from "../../services/notificationService.js";
 
 /**
  * Get available slots for a lab on a specific date
@@ -86,6 +87,49 @@ export const bookTest = async (req, res) => {
 
     await session.commitTransaction();
     session.endSession();
+
+    // Get patient and lab details for notification
+    const Patient = (await import("../../model/patient/patient.model.js")).default;
+    const patient = await Patient.findById(patientId);
+    const labPopulated = await booking.populate('labId');
+
+    // Get test name from pricing
+    const pricingWithTest = await LabTestPricing.findById(labTestPricingId).populate('test', 'title');
+    const testTitle = pricingWithTest?.test?.title || 'Test';
+    const labName = labPopulated?.labId?.labName || 'Unknown Lab';
+
+    // Prepare notification data
+    const notificationData = {
+      type: 'new_booking',
+      bookingId: booking._id.toString(),
+      patientName: patient?.name || 'Unknown Patient',
+      patientPhone: patient?.mobile || patient?.phone || 'N/A',
+      labName: labName,
+      testName: testTitle,
+      amount: String(finalAmount),
+      bookingDate: slot.date || '',
+      slotTime: `${slot.startTime} - ${slot.endTime}`,
+      paymentMode: paymentMode || 'Cash on Collection',
+      timestamp: new Date().toISOString()
+    };
+
+    // Send notification to Lab
+    if (pricing.registration) {
+      await sendNotificationToUser(
+        pricing.registration.toString(),
+        '🔔 New Test Booking Received!',
+        `Patient: ${patient?.name || 'Patient'} | Test: ${testTitle} | Slot: ${slot.startTime}-${slot.endTime} | Amount: ₹${finalAmount}`,
+        notificationData,
+        'pathology'
+      ).catch(err => console.error('Error sending lab notification:', err));
+    }
+
+    // Send notification to all Admins
+    await sendNotificationToAdmins(
+      '🔔 New Test Booking',
+      `Lab: ${labName} | Patient: ${patient?.name || 'Unknown'} | Test: ${testTitle} | Amount: ₹${finalAmount}`,
+      notificationData
+    ).catch(err => console.error('Error sending admin notification:', err));
 
     // Auto notification — fire and forget
     createNotification(

@@ -2,6 +2,7 @@ import Package from "../../model/admin/managePackage.model.js";
 import LabSubscription from "../../model/labSubscription.model.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
+import { sendNotificationToUser } from "../../services/notificationService.js";
 
 // Lazy init — env variables load hone ke baad
 const getRazorpay = () => new Razorpay({
@@ -441,6 +442,21 @@ export const acceptBooking = async (req, res) => {
     sub.totalBookingsAccepted += 1;
     await sub.save();
 
+    // Send notification to lab
+    const notificationData = {
+      type: 'booking_accepted',
+      bookingId: bookingId,
+      bookingType: bookingType,
+      timestamp: new Date().toISOString()
+    };
+    
+    await sendNotificationToUser(
+      labId,
+      '✅ Booking Accepted',
+      `Your booking has been confirmed. Booking ID: ${bookingId}`,
+      notificationData
+    );
+
     res.status(200).json({
       success: true,
       message: "Booking accepted successfully",
@@ -508,6 +524,22 @@ export const declineBooking = async (req, res) => {
         { new: true }
       );
     }
+
+    // Send notification to lab
+    const notificationData = {
+      type: 'booking_declined',
+      bookingId: bookingId,
+      bookingType: bookingType,
+      reason: reason,
+      timestamp: new Date().toISOString()
+    };
+    
+    await sendNotificationToUser(
+      labId,
+      '❌ Booking Declined',
+      `Booking has been declined. Reason: ${reason || 'No reason provided'}`,
+      notificationData
+    );
 
     res.status(200).json({
       success: true,

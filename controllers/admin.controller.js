@@ -54,7 +54,7 @@ export const login = async (req, res) => {
     }
     let token;
     try {
-      token = generateToken(existAdmin._id)
+      token = generateToken(existAdmin._id, 'admin')
     } catch (error) {
       return res.status(500).json({ message: "Token not found !" })
     }
