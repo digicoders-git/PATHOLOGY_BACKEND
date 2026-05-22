@@ -99,7 +99,7 @@ router.post('/test-notification', anyAuth, async (req, res) => {
   }
 });
 
-// Send to topic (no auth)
+// Send to topic (no auth) — v2
 router.post('/send-to-topic', async (req, res) => {
   try {
     const { topic, title, body, data } = req.body;
