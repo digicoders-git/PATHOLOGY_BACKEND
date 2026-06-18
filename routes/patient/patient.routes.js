@@ -3,7 +3,7 @@ import { sendOtp, verifyOtp, updateProfile, getProfile, updateStatus, getAllPati
 import { getAvailableSlots, bookTest, getMyBookings } from "../../controllers/patient/booking.controller.js";
 import { getMyTransactions } from "../../controllers/patient/transaction.controller.js";
 import { submitSupportQuery, getMySupportQueries } from "../../controllers/patient/support.controller.js";
-import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../../controllers/patient/patientNotification.controller.js";
+import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead, savePatientFCMToken, removePatientFCMToken } from "../../controllers/patient/patientNotification.controller.js";
 import { downloadReport } from "../../controllers/booking.controller.js";
 import { patientAuth, patientAdminAuth } from "../../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../../middleware/verifyAdminToken.js";
@@ -33,6 +33,8 @@ router.get("/support", patientAuth, getMySupportQueries);
 router.get("/notifications", patientAuth, getMyNotifications);
 router.patch("/notifications/mark-all-read", patientAuth, markAllNotificationsAsRead);
 router.patch("/notifications/:id/read", patientAuth, markNotificationAsRead);
+router.post("/fcm/save", patientAuth, savePatientFCMToken);
+router.post("/fcm/remove", patientAuth, removePatientFCMToken);
 
 // Admin only routes
 router.get("/all-patients", verifyAdminToken, getAllPatients);

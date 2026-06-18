@@ -76,3 +76,39 @@ export const markAllNotificationsAsRead = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const savePatientFCMToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'FCM token is required' });
+    
+    const { saveFCMToken } = await import("../../services/notificationService.js");
+    const result = await saveFCMToken(req.user.id, token, 'patient');
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const removePatientFCMToken = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'FCM token is required' });
+    
+    const { removeFCMToken } = await import("../../services/notificationService.js");
+    const result = await removeFCMToken(req.user.id, token, 'patient');
+    
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(400).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

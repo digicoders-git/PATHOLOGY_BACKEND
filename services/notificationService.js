@@ -1,9 +1,14 @@
 import { messaging } from '../config/firebase.js';
 import Admin from '../model/admin.models.js';
 import Registration from '../model/registration.model.js';
+import Patient from '../model/patient/patient.model.js';
 
 // Determine which MongoDB model to use based on role
-const getModel = (role) => role === 'admin' ? Admin : Registration;
+const getModel = (role) => {
+  if (role === 'admin') return Admin;
+  if (role === 'patient') return Patient;
+  return Registration;
+};
 
 // Save FCM token to MongoDB
 export const saveFCMToken = async (userId, token, role = 'pathology') => {
