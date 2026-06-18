@@ -1,6 +1,8 @@
 import express from "express";
 import { sendOtp, verifyOtp, updateProfile, getProfile, updateStatus, getAllPatients, getAllTestPricingForPatient } from "../../controllers/patient/patient.controller.js";
 import { getAvailableSlots, bookTest, getMyBookings } from "../../controllers/patient/booking.controller.js";
+import { getMyTransactions } from "../../controllers/patient/transaction.controller.js";
+import { submitSupportQuery, getMySupportQueries } from "../../controllers/patient/support.controller.js";
 import { downloadReport } from "../../controllers/booking.controller.js";
 import { patientAuth, patientAdminAuth } from "../../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../../middleware/verifyAdminToken.js";
@@ -19,7 +21,12 @@ router.get("/profile", patientAuth, getProfile);
 router.put("/update-profile", patientAdminAuth, upload.single('profilePhoto'), updateProfile);
 router.post("/book-test", patientAuth, bookTest);
 router.get("/my-bookings", patientAuth, getMyBookings);
+router.get("/transactions", patientAuth, getMyTransactions);
 router.get("/download-report/:id", patientAuth, downloadReport);
+
+// Support / Contact routes
+router.post("/support", patientAuth, submitSupportQuery);
+router.get("/support", patientAuth, getMySupportQueries);
 
 // Admin only routes
 router.get("/all-patients", verifyAdminToken, getAllPatients);

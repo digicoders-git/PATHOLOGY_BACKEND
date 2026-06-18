@@ -46,7 +46,6 @@ export const markAsRead = async (req, res) => {
 };
 
 
-
 // Mark all as read
 export const markAllAsRead = async (req, res) => {
   try {

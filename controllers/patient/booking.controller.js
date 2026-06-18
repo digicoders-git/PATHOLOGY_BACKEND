@@ -81,7 +81,22 @@ export const bookTest = async (req, res) => {
     const booking = new TestBooking(bookingData);
     await booking.save({ session });
 
-    // 4. Update Slot status
+    // 4. Create Transaction Record
+    const Transaction = (await import("../../model/transaction.model.js")).default;
+    const transactionData = {
+      userId: patientId,
+      userType: 'Patient',
+      relatedBooking: booking._id,
+      amount: finalAmount,
+      type: 'debit',
+      paymentMode: paymentMode || "Cash on Collection",
+      status: paymentMode === "Online" ? "success" : "pending",
+      description: `Payment for Test Booking (Slot: ${slot.startTime}-${slot.endTime})`
+    };
+    const transaction = new Transaction(transactionData);
+    await transaction.save({ session });
+
+    // 5. Update Slot status
     slot.isBooked = true;
     await slot.save({ session });
 

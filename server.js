@@ -79,6 +79,10 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 
 await connectDB();
 
+app.get('/', (req, res) => {
+  res.status(200).json({ success: true, message: "Welcome to Pathology Backend API. System is up and running!" });
+});
+
 app.get('/endpoints', (req, res) => {
   const data = fs.readFileSync(path.join(__dirname, 'endpoints.json'), 'utf8');
   res.status(200).json(JSON.parse(data));
