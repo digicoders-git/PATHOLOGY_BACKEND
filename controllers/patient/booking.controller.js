@@ -193,7 +193,9 @@ export const bookTest = async (req, res) => {
 export const getMyBookings = async (req, res) => {
   try {
     const patientId = req.user.id;
-    const bookings = await TestBooking.find({ patientId })
+    
+    // Fetch from new app flow (TestBooking)
+    const newBookingsPromise = (await import("../../model/testBooking.model.js")).default.find({ patientId })
       .populate("labId", "labName labLogo fullAddress areaName city")
       .populate({
         path: "labTestPricingId",
@@ -202,10 +204,61 @@ export const getMyBookings = async (req, res) => {
       .populate("slotId")
       .sort({ createdAt: -1 });
 
+    // Fetch from old direct flow (Booking)
+    const oldBookingsPromise = (await import("../../model/booking.model.js")).default.find({ patient: patientId })
+      .populate("registration", "labName labLogo fullAddress areaName city")
+      .populate("tests.test", "title")
+      .sort({ createdAt: -1 });
+
+    const [newBookings, oldBookings] = await Promise.all([newBookingsPromise, oldBookingsPromise]);
+
+    // Normalize new bookings
+    const normalizedNew = newBookings.map((b) => ({
+      _id: b._id,
+      bookingId: b.bookingId || b._id.toString().slice(-8).toUpperCase(),
+      patientId: b.patientId,
+      labId: b.labId,
+      labTestPricingId: b.labTestPricingId,
+      bookingDate: b.bookingDate,
+      slotId: b.slotId,
+      amount: b.amount,
+      paymentMode: b.paymentMode,
+      paymentStatus: b.paymentStatus,
+      bookingStatus: b.bookingStatus,
+      reportFile: b.reportFile,
+      reportStatus: b.reportStatus,
+      createdAt: b.createdAt,
+      source: "app"
+    }));
+
+    // Normalize old bookings
+    const normalizedOld = oldBookings.map((b) => ({
+      _id: b._id,
+      bookingId: b._id.toString().slice(-8).toUpperCase(),
+      patientId: b.patient,
+      labId: b.registration, // Mapped to labId for UI consistency
+      labTestPricingId: { 
+        test: { title: b.tests?.map(t => t.test?.title).filter(Boolean).join(", ") || "Multiple Tests" } 
+      }, // Mapped to match UI structure
+      bookingDate: b.scheduledDate || b.createdAt,
+      slotId: { startTime: "N/A", endTime: "N/A", date: "N/A" }, // Mocked slot
+      amount: b.finalAmount,
+      paymentMode: b.paymentMethod,
+      paymentStatus: b.paymentStatus,
+      bookingStatus: b.status,
+      reportFile: b.reportFile,
+      reportStatus: b.reportFile ? "Uploaded" : "Pending",
+      createdAt: b.createdAt,
+      source: "direct"
+    }));
+
+    // Merge and sort
+    const mergedBookings = [...normalizedNew, ...normalizedOld].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
     res.json({
       success: true,
-      count: bookings.length,
-      data: bookings,
+      count: mergedBookings.length,
+      data: mergedBookings,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
