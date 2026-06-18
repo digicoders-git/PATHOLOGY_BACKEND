@@ -5,6 +5,8 @@ const adminSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+
+  // jhgvbjh
   email: {
     type: String,
     required: true
