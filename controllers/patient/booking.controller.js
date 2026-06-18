@@ -155,6 +155,17 @@ export const bookTest = async (req, res) => {
       booking._id
     ).catch(() => {});
 
+    // Save notification for Patient App History
+    const PatientNotification = (await import("../../model/patientNotification.model.js")).default;
+    const patNotif = new PatientNotification({
+      patientId,
+      title: "Booking Confirmed! ✅",
+      message: `Your test booking for ${testTitle} at ${labName} has been confirmed.`,
+      type: "booking_status",
+      relatedBookingId: booking._id
+    });
+    patNotif.save().catch(() => {});
+
     // Populate details for confirmation screen
     const confirmedBooking = await TestBooking.findById(booking._id)
       .populate("labId", "labName fullAddress phone areaName city")

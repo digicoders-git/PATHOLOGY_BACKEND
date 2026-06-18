@@ -3,6 +3,7 @@ import { sendOtp, verifyOtp, updateProfile, getProfile, updateStatus, getAllPati
 import { getAvailableSlots, bookTest, getMyBookings } from "../../controllers/patient/booking.controller.js";
 import { getMyTransactions } from "../../controllers/patient/transaction.controller.js";
 import { submitSupportQuery, getMySupportQueries } from "../../controllers/patient/support.controller.js";
+import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../../controllers/patient/patientNotification.controller.js";
 import { downloadReport } from "../../controllers/booking.controller.js";
 import { patientAuth, patientAdminAuth } from "../../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../../middleware/verifyAdminToken.js";
@@ -27,6 +28,11 @@ router.get("/download-report/:id", patientAuth, downloadReport);
 // Support / Contact routes
 router.post("/support", patientAuth, submitSupportQuery);
 router.get("/support", patientAuth, getMySupportQueries);
+
+// Notification routes
+router.get("/notifications", patientAuth, getMyNotifications);
+router.patch("/notifications/mark-all-read", patientAuth, markAllNotificationsAsRead);
+router.patch("/notifications/:id/read", patientAuth, markNotificationAsRead);
 
 // Admin only routes
 router.get("/all-patients", verifyAdminToken, getAllPatients);
