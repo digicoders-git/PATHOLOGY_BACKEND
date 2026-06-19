@@ -457,6 +457,18 @@ export const acceptBooking = async (req, res) => {
       notificationData
     );
 
+    // Send notification to Patient
+    const patientId = existingBooking.patientId || existingBooking.patient;
+    if (patientId) {
+      await sendNotificationToUser(
+        patientId.toString(),
+        '✅ Booking Confirmed',
+        `Your booking has been accepted by the lab.`,
+        notificationData,
+        'patient'
+      ).catch(err => console.error('Error sending patient notification:', err));
+    }
+
     res.status(200).json({
       success: true,
       message: "Booking accepted successfully",
@@ -540,6 +552,18 @@ export const declineBooking = async (req, res) => {
       `Booking has been declined. Reason: ${reason || 'No reason provided'}`,
       notificationData
     );
+
+    // Send notification to Patient
+    const patientId = existingBooking.patientId || existingBooking.patient;
+    if (patientId) {
+      await sendNotificationToUser(
+        patientId.toString(),
+        '❌ Booking Declined',
+        `Your booking has been declined by the lab. Reason: ${reason || 'No reason provided'}`,
+        notificationData,
+        'patient'
+      ).catch(err => console.error('Error sending patient notification:', err));
+    }
 
     res.status(200).json({
       success: true,

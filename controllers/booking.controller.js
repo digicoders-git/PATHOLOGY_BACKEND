@@ -339,6 +339,16 @@ export const updateBookingStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
+    if (booking.patient) {
+      sendNotificationToUser(
+        booking.patient.toString(),
+        '🔄 Booking Status Updated',
+        `Your booking status has been updated to ${booking.status}.`,
+        { type: 'status_update', bookingId: booking._id.toString() },
+        'patient'
+      ).catch(err => console.error('Error sending patient notification:', err));
+    }
+
     res.status(200).json({ success: true, message: "Booking updated", data: booking });
   } catch (error) {
     console.error("UPDATE_BOOKING_ERROR:", error);
@@ -368,6 +378,18 @@ export const uploadReport = async (req, res) => {
       booking.reportStatus = "Uploaded";
       booking.status = "Completed";
       await booking.save();
+
+      // Notify Patient
+      if (booking.patient) {
+        await sendNotificationToUser(
+          booking.patient.toString(), 
+          '📄 Report Uploaded', 
+          'Your test report is now available to download.', 
+          { type: 'report_uploaded', bookingId: id }, 
+          'patient'
+        ).catch(err => console.error('Error sending patient notification:', err));
+      }
+
       return res.status(200).json({ success: true, message: "Report uploaded successfully", data: booking });
     }
 
@@ -381,6 +403,18 @@ export const uploadReport = async (req, res) => {
       testBooking.reportStatus = "Uploaded";
       testBooking.bookingStatus = "Completed";
       await testBooking.save();
+
+      // Notify Patient
+      if (testBooking.patientId) {
+        await sendNotificationToUser(
+          testBooking.patientId.toString(), 
+          '📄 Report Uploaded', 
+          'Your test report is now available to download.', 
+          { type: 'report_uploaded', bookingId: id }, 
+          'patient'
+        ).catch(err => console.error('Error sending patient notification:', err));
+      }
+
       return res.status(200).json({ success: true, message: "Report uploaded successfully", data: testBooking });
     }
 

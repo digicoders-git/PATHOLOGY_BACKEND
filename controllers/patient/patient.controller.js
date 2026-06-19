@@ -130,6 +130,19 @@ export const updateStatus = async (req, res) => {
 
     await patient.save();
 
+    // Send push notification if blocked
+    if (!patient.isActive) {
+      import("../../services/notificationService.js").then(({ sendNotificationToUser }) => {
+        sendNotificationToUser(
+          patient._id.toString(),
+          '⚠️ Account Blocked',
+          'Your account has been blocked by the Administrator. Please contact support.',
+          { type: 'account_blocked' },
+          'patient'
+        ).catch(err => console.error('Error sending block notification:', err));
+      });
+    }
+
     res.json({
       success: true,
       message: `Patient status toggled to ${patient.isActive ? 'Active' : 'Inactive'}`,
