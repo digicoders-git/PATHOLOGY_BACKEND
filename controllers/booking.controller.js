@@ -341,7 +341,7 @@ export const updateBookingStatus = async (req, res) => {
 
     if (booking.patient) {
       const patientId = booking.patient.toString();
-      const title = '🔄 Booking Status Updated';
+      const title = 'Booking Status Updated';
       const message = `Your booking status has been updated to ${booking.status}.`;
       
       import("../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
@@ -396,7 +396,7 @@ export const uploadReport = async (req, res) => {
       // Notify Patient
       if (booking.patient) {
         const patientId = booking.patient.toString();
-        const title = '📄 Report Uploaded';
+        const title = 'Report Uploaded';
         const message = 'Your test report is now available to download.';
         
         import("../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
@@ -435,7 +435,7 @@ export const uploadReport = async (req, res) => {
       // Notify Patient
       if (testBooking.patientId) {
         const patientId = testBooking.patientId.toString();
-        const title = '📄 Report Uploaded';
+        const title = 'Report Uploaded';
         const message = 'Your test report is now available to download.';
 
         import("../model/patientNotification.model.js").then(({ default: PatientNotification }) => {

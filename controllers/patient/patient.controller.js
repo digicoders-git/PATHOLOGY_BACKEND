@@ -131,7 +131,7 @@ export const updateStatus = async (req, res) => {
     await patient.save();
 
     // Send push notification for block/unblock
-    const title = patient.isActive ? '✅ Account Activated' : '⚠️ Account Blocked';
+    const title = patient.isActive ? 'Account Activated' : 'Account Blocked';
     const message = patient.isActive 
       ? 'Your account has been activated by the Administrator.' 
       : 'Your account has been blocked by the Administrator. Please contact support.';

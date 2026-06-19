@@ -461,7 +461,7 @@ export const acceptBooking = async (req, res) => {
     const patientId = existingBooking.patientId || existingBooking.patient;
     if (patientId) {
       const pid = patientId.toString();
-      const title = '✅ Booking Confirmed';
+      const title = 'Booking Confirmed';
       const message = 'Your booking has been accepted by the lab.';
 
       import("../../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
@@ -562,7 +562,7 @@ export const declineBooking = async (req, res) => {
     
     await sendNotificationToUser(
       labId,
-      '❌ Booking Declined',
+      'Booking Declined',
       `Booking has been declined. Reason: ${reason || 'No reason provided'}`,
       notificationData
     );
@@ -571,7 +571,7 @@ export const declineBooking = async (req, res) => {
     const patientId = existingBooking.patientId || existingBooking.patient;
     if (patientId) {
       const pid = patientId.toString();
-      const title = '❌ Booking Declined';
+      const title = 'Booking Declined';
       const message = `Your booking has been declined by the lab. Reason: ${reason || 'No reason provided'}`;
 
       import("../../model/patientNotification.model.js").then(({ default: PatientNotification }) => {

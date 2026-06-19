@@ -132,7 +132,7 @@ export const bookTest = async (req, res) => {
     if (pricing.registration) {
       await sendNotificationToUser(
         pricing.registration.toString(),
-        '🔔 New Test Booking Received!',
+        'New Test Booking Received!',
         `Patient: ${patient?.name || 'Patient'} | Test: ${testTitle} | Slot: ${slot.startTime}-${slot.endTime} | Amount: ₹${finalAmount}`,
         notificationData,
         'pathology'
@@ -141,7 +141,7 @@ export const bookTest = async (req, res) => {
 
     // Send notification to all Admins
     await sendNotificationToAdmins(
-      '🔔 New Test Booking',
+      'New Test Booking',
       `Lab: ${labName} | Patient: ${patient?.name || 'Unknown'} | Test: ${testTitle} | Amount: ₹${finalAmount}`,
       notificationData
     ).catch(err => console.error('Error sending admin notification:', err));
