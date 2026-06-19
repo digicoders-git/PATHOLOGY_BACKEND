@@ -130,18 +130,30 @@ export const updateStatus = async (req, res) => {
 
     await patient.save();
 
-    // Send push notification if blocked
-    if (!patient.isActive) {
-      import("../../services/notificationService.js").then(({ sendNotificationToUser }) => {
-        sendNotificationToUser(
-          patient._id.toString(),
-          '⚠️ Account Blocked',
-          'Your account has been blocked by the Administrator. Please contact support.',
-          { type: 'account_blocked' },
-          'patient'
-        ).catch(err => console.error('Error sending block notification:', err));
-      });
-    }
+    // Send push notification for block/unblock
+    const title = patient.isActive ? '✅ Account Activated' : '⚠️ Account Blocked';
+    const message = patient.isActive 
+      ? 'Your account has been activated by the Administrator.' 
+      : 'Your account has been blocked by the Administrator. Please contact support.';
+
+    import("../../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
+      PatientNotification.create({
+        patientId: patient._id,
+        title: title,
+        message: message,
+        type: 'system'
+      }).catch(err => console.error('Error saving block DB notification:', err));
+    });
+
+    import("../../services/notificationService.js").then(({ sendNotificationToUser }) => {
+      sendNotificationToUser(
+        patient._id.toString(),
+        title,
+        message,
+        { type: patient.isActive ? 'account_activated' : 'account_blocked' },
+        'patient'
+      ).catch(err => console.error('Error sending block notification:', err));
+    });
 
     res.json({
       success: true,

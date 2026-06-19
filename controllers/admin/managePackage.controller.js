@@ -460,10 +460,24 @@ export const acceptBooking = async (req, res) => {
     // Send notification to Patient
     const patientId = existingBooking.patientId || existingBooking.patient;
     if (patientId) {
+      const pid = patientId.toString();
+      const title = '✅ Booking Confirmed';
+      const message = 'Your booking has been accepted by the lab.';
+
+      import("../../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
+        PatientNotification.create({
+          patientId: pid,
+          title: title,
+          message: message,
+          type: 'booking_status',
+          relatedBookingId: existingBooking._id
+        }).catch(err => console.error('Error saving DB notification:', err));
+      }).catch(err => {});
+
       await sendNotificationToUser(
-        patientId.toString(),
-        '✅ Booking Confirmed',
-        `Your booking has been accepted by the lab.`,
+        pid,
+        title,
+        message,
         notificationData,
         'patient'
       ).catch(err => console.error('Error sending patient notification:', err));
@@ -556,10 +570,24 @@ export const declineBooking = async (req, res) => {
     // Send notification to Patient
     const patientId = existingBooking.patientId || existingBooking.patient;
     if (patientId) {
+      const pid = patientId.toString();
+      const title = '❌ Booking Declined';
+      const message = `Your booking has been declined by the lab. Reason: ${reason || 'No reason provided'}`;
+
+      import("../../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
+        PatientNotification.create({
+          patientId: pid,
+          title: title,
+          message: message,
+          type: 'booking_status',
+          relatedBookingId: existingBooking._id
+        }).catch(err => console.error('Error saving DB notification:', err));
+      }).catch(err => {});
+
       await sendNotificationToUser(
-        patientId.toString(),
-        '❌ Booking Declined',
-        `Your booking has been declined by the lab. Reason: ${reason || 'No reason provided'}`,
+        pid,
+        title,
+        message,
         notificationData,
         'patient'
       ).catch(err => console.error('Error sending patient notification:', err));

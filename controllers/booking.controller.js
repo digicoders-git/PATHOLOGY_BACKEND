@@ -340,10 +340,24 @@ export const updateBookingStatus = async (req, res) => {
     }
 
     if (booking.patient) {
+      const patientId = booking.patient.toString();
+      const title = '🔄 Booking Status Updated';
+      const message = `Your booking status has been updated to ${booking.status}.`;
+      
+      import("../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
+        PatientNotification.create({
+          patientId: patientId,
+          title: title,
+          message: message,
+          type: 'booking_status',
+          relatedBookingId: booking._id
+        }).catch(err => console.error('Error saving DB notification:', err));
+      }).catch(err => {});
+
       sendNotificationToUser(
-        booking.patient.toString(),
-        '🔄 Booking Status Updated',
-        `Your booking status has been updated to ${booking.status}.`,
+        patientId,
+        title,
+        message,
         { type: 'status_update', bookingId: booking._id.toString() },
         'patient'
       ).catch(err => console.error('Error sending patient notification:', err));
@@ -381,10 +395,24 @@ export const uploadReport = async (req, res) => {
 
       // Notify Patient
       if (booking.patient) {
+        const patientId = booking.patient.toString();
+        const title = '📄 Report Uploaded';
+        const message = 'Your test report is now available to download.';
+        
+        import("../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
+          PatientNotification.create({
+            patientId: patientId,
+            title: title,
+            message: message,
+            type: 'report_ready',
+            relatedBookingId: booking._id
+          }).catch(err => console.error('Error saving DB notification:', err));
+        }).catch(err => {});
+
         await sendNotificationToUser(
-          booking.patient.toString(), 
-          '📄 Report Uploaded', 
-          'Your test report is now available to download.', 
+          patientId, 
+          title, 
+          message, 
           { type: 'report_uploaded', bookingId: id }, 
           'patient'
         ).catch(err => console.error('Error sending patient notification:', err));
@@ -406,10 +434,24 @@ export const uploadReport = async (req, res) => {
 
       // Notify Patient
       if (testBooking.patientId) {
+        const patientId = testBooking.patientId.toString();
+        const title = '📄 Report Uploaded';
+        const message = 'Your test report is now available to download.';
+
+        import("../model/patientNotification.model.js").then(({ default: PatientNotification }) => {
+          PatientNotification.create({
+            patientId: patientId,
+            title: title,
+            message: message,
+            type: 'report_ready',
+            relatedBookingId: testBooking._id
+          }).catch(err => console.error('Error saving DB notification:', err));
+        }).catch(err => {});
+
         await sendNotificationToUser(
-          testBooking.patientId.toString(), 
-          '📄 Report Uploaded', 
-          'Your test report is now available to download.', 
+          patientId, 
+          title, 
+          message, 
           { type: 'report_uploaded', bookingId: id }, 
           'patient'
         ).catch(err => console.error('Error sending patient notification:', err));
