@@ -89,7 +89,21 @@ export const sendNotificationToAdmins = async (title, body, data = {}) => {
 const sendToTokens = async (tokens, title, body, data = {}) => {
   const message = {
     notification: { title, body },
-    data: stringifyData(data)
+    data: stringifyData(data),
+    android: {
+      priority: 'high',
+      notification: {
+        sound: 'default',
+        channelId: 'high_importance_channel'
+      }
+    },
+    apns: {
+      payload: {
+        aps: {
+          sound: 'default'
+        }
+      }
+    }
   };
 
   const results = [];
