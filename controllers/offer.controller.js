@@ -206,13 +206,20 @@ export const validateCoupon = async (req, res) => {
     // Check One-Time Use (Has this patient already used this coupon?)
     if (patientId) {
       const TestBooking = (await import("../model/testBooking.model.js")).default;
-      const previousBooking = await TestBooking.findOne({
+      const previousTestBooking = await TestBooking.findOne({
         patientId: patientId,
         couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
-        bookingStatus: { $ne: "Cancelled" } // Ignore if they cancelled the previous booking
+        bookingStatus: { $ne: "Cancelled" }
       });
 
-      if (previousBooking) {
+      const Booking = (await import("../model/booking.model.js")).default;
+      const previousDirectBooking = await Booking.findOne({
+        patient: patientId,
+        couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+        status: { $ne: "Cancelled" }
+      });
+
+      if (previousTestBooking || previousDirectBooking) {
         return res.status(400).json({ success: false, message: "You have already used this coupon" });
       }
     }
