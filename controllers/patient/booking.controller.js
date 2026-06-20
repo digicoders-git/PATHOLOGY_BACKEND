@@ -126,6 +126,8 @@ export const bookTest = async (req, res) => {
       bookingDate: slot.date,
       slotId,
       amount: finalAmount,
+      baseAmount: baseAmount,
+      totalDiscount: baseAmount - finalAmount,
       paymentMode: paymentMode || "Cash on Collection",
       paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
       bookingStatus: "Pending",

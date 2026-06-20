@@ -65,6 +65,14 @@ const testBookingSchema = new mongoose.Schema(
     adminDiscountAmount: {
       type: Number,
       default: 0,
+    },
+    baseAmount: {
+      type: Number,
+      default: 0,
+    },
+    totalDiscount: {
+      type: Number,
+      default: 0,
     }
   },
   { timestamps: true }
