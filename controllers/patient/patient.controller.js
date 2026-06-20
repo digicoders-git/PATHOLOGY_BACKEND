@@ -49,9 +49,16 @@ export const verifyOtp = async (req, res) => {
     }
 
     let patient = await Patient.findOne({ mobile });
+    let isNewUser = false;
 
     if (!patient) {
       patient = await Patient.create({ mobile });
+      isNewUser = true;
+    } else {
+      // If patient exists but has no name, they still need to complete profile
+      if (!patient.name || patient.name.trim() === '') {
+        isNewUser = true;
+      }
     }
 
     const token = jwt.sign(
@@ -66,6 +73,7 @@ export const verifyOtp = async (req, res) => {
       message: "Login successful",
       token,
       patient,
+      isNewUser,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
