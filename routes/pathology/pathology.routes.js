@@ -4,6 +4,7 @@ import { getAllSlots, generateSlots, getLabSlots, deleteSlot } from "../../contr
 import { getMyLabBookings, updateBookingStatus, uploadTestReport, getSingleBookingDetails, getLabReports } from "../../controllers/pathology/bookingManagement.controller.js";
 import { createLabOffer, updateLabOffer, getMyOffers, getActiveLabOffers, deleteLabOffer, toggleLabOfferStatus } from "../../controllers/pathology/labOffer.controller.js";
 import { submitLabSupportQuery, getMyLabSupportQueries } from "../../controllers/pathology/support.controller.js";
+import { savePathologyFCMToken, removePathologyFCMToken } from "../../controllers/pathology/fcm.controller.js";
 import { pathologyAuth } from "../../middleware/pathologyAuth.middleware.js";
 import upload from "../../middleware/multer.js";
 
@@ -48,5 +49,9 @@ router.patch("/offers/toggle/:id", pathologyAuth, toggleLabOfferStatus);        
 // ── Support / Contact ─────────────────────────────────────────────────────────
 router.post("/support", pathologyAuth, submitLabSupportQuery);
 router.get("/support", pathologyAuth, getMyLabSupportQueries);
+
+// ── FCM Notification ─────────────────────────────────────────────────────────
+router.post("/fcm/save", pathologyAuth, savePathologyFCMToken);
+router.post("/fcm/remove", pathologyAuth, removePathologyFCMToken);
 
 export default router;
