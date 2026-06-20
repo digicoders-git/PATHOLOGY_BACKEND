@@ -1,8 +1,10 @@
 import express from 'express'
 import { create, get, login, deleteAdmin, updateAdmin, getById } from '../controllers/admin.controller.js'
 import { getAllSupportQueries, getSupportQueryById, updateSupportQuery, deleteSupportQuery, replyToSupportQuery } from '../controllers/admin/support.controller.js'
+import { getWithdrawalRequests, updateWithdrawalStatus } from "../controllers/admin/wallet.controller.js";
 
 import upload from '../middleware/multer.js'
+import { adminAuth } from '../middleware/adminAuth.js'
 
 export const adminRoute = express.Router()
 
@@ -19,3 +21,7 @@ adminRoute.get('/support/:id', getSupportQueryById)
 adminRoute.put('/support/:id', updateSupportQuery)
 adminRoute.post('/support/:id/reply', replyToSupportQuery)
 adminRoute.delete('/support/:id', deleteSupportQuery)
+
+// Wallet Withdrawals
+adminRoute.get("/wallet/withdrawals", adminAuth, getWithdrawalRequests);
+adminRoute.put("/wallet/withdrawals/:id/status", adminAuth, updateWithdrawalStatus);

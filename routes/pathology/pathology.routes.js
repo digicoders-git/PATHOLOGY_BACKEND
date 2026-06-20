@@ -50,9 +50,10 @@ router.patch("/offers/toggle/:id", pathologyAuth, toggleLabOfferStatus);        
 router.post("/support", pathologyAuth, submitLabSupportQuery);
 router.get("/support", pathologyAuth, getMyLabSupportQueries);
 
-// ── Wallet / Transactions ───────────────────────────────────────────────────
-import { getMyWalletTransactions } from "../../controllers/pathology/wallet.controller.js";
+// ── Wallet ──────────────────────────────────────────────────────────────────
+import { getMyWalletTransactions, requestWithdrawal } from "../../controllers/pathology/wallet.controller.js";
 router.get("/wallet-transactions", pathologyAuth, getMyWalletTransactions);
+router.post("/wallet/withdraw", pathologyAuth, requestWithdrawal);
 
 // ── FCM Notification ─────────────────────────────────────────────────────────
 router.post("/fcm/save", pathologyAuth, savePathologyFCMToken);
