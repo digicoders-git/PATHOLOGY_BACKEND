@@ -1,4 +1,11 @@
 import Plan from "../model/plan.model.js";
+import Razorpay from "razorpay";
+import crypto from "crypto";
+
+const getRazorpay = () => new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 // Create a new plan (Admin)
 export const createPlan = async (req, res) => {
@@ -45,13 +52,68 @@ export const deletePlan = async (req, res) => {
     }
 };
 
-// Purchase a plan (Lab)
-export const purchasePlan = async (req, res) => {
+// Create Purchase Order for a Plan (Lab)
+export const createPlanPurchaseOrder = async (req, res) => {
     try {
-        const { planId, labId } = req.body;
+        const { planId } = req.body;
+        const labId = req.user.id;
         
-        if (!planId || !labId) {
-            return res.status(400).json({ success: false, message: "planId and labId are required" });
+        if (!planId) {
+            return res.status(400).json({ success: false, message: "planId is required" });
+        }
+
+        const plan = await Plan.findById(planId);
+        if (!plan) {
+            return res.status(404).json({ success: false, message: "Plan not found" });
+        }
+
+        const timestamp = Date.now().toString().slice(-8);
+        const labIdShort = labId.toString().slice(-8);
+        const receipt = `plan_${labIdShort}_${timestamp}`;
+
+        const order = await getRazorpay().orders.create({
+            amount: plan.price * 100, // Amount in paise
+            currency: "INR",
+            receipt: receipt,
+            notes: { labId: labId.toString(), planId: planId.toString() },
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Order created successfully",
+            data: {
+                orderId: order.id,
+                amount: order.amount,
+                currency: order.currency,
+                keyId: process.env.RAZORPAY_KEY_ID,
+                plan: { name: plan.name, price: plan.price },
+            },
+        });
+    } catch (error) {
+        const errorMsg = error?.error?.description || error?.message || "Failed to create order";
+        res.status(500).json({ success: false, message: errorMsg });
+    }
+};
+
+// Verify Payment and Activate Plan (Lab)
+export const verifyPlanPurchase = async (req, res) => {
+    try {
+        const labId = req.user.id;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planId } = req.body;
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !planId) {
+            return res.status(400).json({ success: false, message: "Missing payment details or planId" });
+        }
+
+        // Verify signature
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(body)
+            .digest("hex");
+
+        if (expectedSignature !== razorpay_signature) {
+            return res.status(400).json({ success: false, message: "Payment verification failed. Invalid signature." });
         }
 
         const plan = await Plan.findById(planId);
@@ -86,7 +148,7 @@ export const purchasePlan = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: `Plan purchased successfully! ${plan.freeBookings} bookings added.`,
+            message: `Payment verified and Plan purchased successfully! ${plan.freeBookings} bookings added.`,
             data: {
                 plan: plan.name,
                 bookingsAdded: plan.freeBookings,
