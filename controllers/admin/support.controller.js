@@ -8,6 +8,7 @@ export const getAllSupportQueries = async (req, res) => {
   try {
     const queries = await Support.find()
       .populate("patientId", "name mobile email")
+      .populate("labId", "labName phone email")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -26,7 +27,9 @@ export const getAllSupportQueries = async (req, res) => {
 export const getSupportQueryById = async (req, res) => {
   try {
     const queryId = req.params.id;
-    const query = await Support.findById(queryId).populate("patientId", "name mobile email");
+    const query = await Support.findById(queryId)
+      .populate("patientId", "name mobile email")
+      .populate("labId", "labName phone email");
 
     if (!query) {
       return res.status(404).json({ success: false, message: "Support query not found" });
@@ -70,16 +73,20 @@ export const updateSupportQuery = async (req, res) => {
 
     await query.save();
 
-    // Send FCM Notification to Patient
-    if ((isStatusChanged || isReplied) && query.patientId) {
+    // Send FCM Notification to User
+    if (isStatusChanged || isReplied) {
       const title = isReplied ? "Support Query Replied" : "Support Query Updated";
       const body = isReplied 
         ? `Admin has replied to your query regarding: ${query.subject}`
         : `The status of your query '${query.subject}' has been updated to: ${query.status}`;
       
-      // We pass 'patient' as the role so it uses the Patient model to find FCM tokens
-      sendNotificationToUser(query.patientId, title, body, { queryId: query._id.toString(), type: "SUPPORT" }, "patient")
-        .catch(err => console.log("Failed to send FCM notification:", err.message));
+      if (query.userType === "Lab" && query.labId) {
+        sendNotificationToUser(query.labId, title, body, { queryId: query._id.toString(), type: "SUPPORT" }, "pathology")
+          .catch(err => console.log("Failed to send FCM notification to Lab:", err.message));
+      } else if (query.userType === "Patient" && query.patientId) {
+        sendNotificationToUser(query.patientId, title, body, { queryId: query._id.toString(), type: "SUPPORT" }, "patient")
+          .catch(err => console.log("Failed to send FCM notification to Patient:", err.message));
+      }
     }
 
     res.status(200).json({
@@ -115,13 +122,16 @@ export const replyToSupportQuery = async (req, res) => {
 
     await query.save();
 
-    // Send FCM Notification to Patient
-    if (query.patientId) {
-      const title = "Support Query Replied";
-      const body = `Admin has replied to your query regarding: ${query.subject}`;
-      
+    // Send FCM Notification
+    const title = "Support Query Replied";
+    const body = `Admin has replied to your query regarding: ${query.subject}`;
+    
+    if (query.userType === "Lab" && query.labId) {
+      sendNotificationToUser(query.labId, title, body, { queryId: query._id.toString(), type: "SUPPORT" }, "pathology")
+        .catch(err => console.log("Failed to send FCM notification to Lab:", err.message));
+    } else if (query.userType === "Patient" && query.patientId) {
       sendNotificationToUser(query.patientId, title, body, { queryId: query._id.toString(), type: "SUPPORT" }, "patient")
-        .catch(err => console.log("Failed to send FCM notification:", err.message));
+        .catch(err => console.log("Failed to send FCM notification to Patient:", err.message));
     }
 
     res.status(200).json({

@@ -3,6 +3,7 @@ import { loginPathology, getPathologyProfile, updatePathologyProfile, getMySelec
 import { getAllSlots, generateSlots, getLabSlots, deleteSlot } from "../../controllers/pathology/slot.controller.js";
 import { getMyLabBookings, updateBookingStatus, uploadTestReport, getSingleBookingDetails, getLabReports } from "../../controllers/pathology/bookingManagement.controller.js";
 import { createLabOffer, updateLabOffer, getMyOffers, getActiveLabOffers, deleteLabOffer, toggleLabOfferStatus } from "../../controllers/pathology/labOffer.controller.js";
+import { submitLabSupportQuery, getMyLabSupportQueries } from "../../controllers/pathology/support.controller.js";
 import { pathologyAuth } from "../../middleware/pathologyAuth.middleware.js";
 import upload from "../../middleware/multer.js";
 
@@ -43,5 +44,9 @@ router.post("/offers/create", pathologyAuth, upload.single("offerImage"), create
 router.put("/offers/update/:id", pathologyAuth, upload.single("offerImage"), updateLabOffer); // PUT /pathology/offers/update/:id
 router.delete("/offers/delete/:id", pathologyAuth, deleteLabOffer);                        // DELETE /pathology/offers/delete/:id
 router.patch("/offers/toggle/:id", pathologyAuth, toggleLabOfferStatus);                   // PATCH /pathology/offers/toggle/:id
+
+// ── Support / Contact ─────────────────────────────────────────────────────────
+router.post("/support", pathologyAuth, submitLabSupportQuery);
+router.get("/support", pathologyAuth, getMyLabSupportQueries);
 
 export default router;

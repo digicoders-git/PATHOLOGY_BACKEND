@@ -5,7 +5,18 @@ const supportSchema = new mongoose.Schema(
     patientId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Patient",
+      required: false,
+    },
+    labId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Registration",
+      required: false,
+    },
+    userType: {
+      type: String,
+      enum: ["Patient", "Lab"],
       required: true,
+      default: "Patient",
     },
     subject: {
       type: String,
