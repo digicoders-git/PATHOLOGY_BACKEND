@@ -219,7 +219,27 @@ export const updateBookingStatus = async (req, res) => {
     // 1. Try to find and update in direct Booking model
     let booking = await Booking.findOne({ _id: bookingId, registration: labId });
     if (booking) {
+      const oldStatus = booking.status;
       booking.status = status;
+
+      // Wallet Logic: If marked as Completed for the first time, credit the lab's wallet
+      if (status === "Completed" && oldStatus !== "Completed" && booking.adminDiscountAmount > 0) {
+         const lab = await Registration.findById(labId);
+         if (lab) {
+            lab.walletBalance = (lab.walletBalance || 0) + booking.adminDiscountAmount;
+            await lab.save();
+
+            const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+            await WalletTransaction.create({
+               labId: labId,
+               amount: booking.adminDiscountAmount,
+               type: "credit",
+               description: `Admin Coupon Refund for Booking`,
+               relatedBookingId: bookingId
+            });
+         }
+      }
+
       await booking.save();
       return res.json({
         success: true,
