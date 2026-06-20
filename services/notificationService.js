@@ -57,6 +57,18 @@ export const getUserFCMTokens = async (userId, role = 'pathology') => {
 // Send notification to specific user by userId
 export const sendNotificationToUser = async (userId, title, body, data = {}, role = 'pathology') => {
   try {
+    if (role === 'pathology') {
+      import('../model/labNotification.model.js').then(({ default: LabNotification }) => {
+        LabNotification.create({
+          labId: userId,
+          title,
+          body,
+          type: data.type || 'SYSTEM',
+          refId: data.queryId || data.bookingId || data.offerId || null
+        }).catch(err => console.log('Failed to save LabNotification:', err.message));
+      });
+    }
+
     const { tokens } = await getUserFCMTokens(userId, role);
     if (!tokens || tokens.length === 0) {
       console.log(`No FCM tokens for user ${userId}`);

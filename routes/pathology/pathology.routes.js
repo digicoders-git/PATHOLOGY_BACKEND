@@ -58,4 +58,10 @@ router.get("/wallet-transactions", pathologyAuth, getMyWalletTransactions);
 router.post("/fcm/save", pathologyAuth, savePathologyFCMToken);
 router.post("/fcm/remove", pathologyAuth, removePathologyFCMToken);
 
+// ── In-App Notifications ───────────────────────────────────────────────────
+import { getMyNotifications, getUnreadCount, markAsRead } from "../../controllers/pathology/notification.controller.js";
+router.get("/notifications", pathologyAuth, getMyNotifications);
+router.get("/notifications/unread", pathologyAuth, getUnreadCount);
+router.put("/notifications/:id/read", pathologyAuth, markAsRead);
+
 export default router;
