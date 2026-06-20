@@ -10,7 +10,7 @@ import fs from "fs";
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
   try {
-    const { registration, tests, scheduledDate, sampleCollectionType, address, paymentMethod, notes } = req.body;
+    const { registration, tests, scheduledDate, sampleCollectionType, address, paymentMethod, notes, couponCode } = req.body;
     const patientId = req.user.id; // From Token
 
     if (!patientId || !registration || !tests || tests.length === 0) {
@@ -52,6 +52,62 @@ export const createBooking = async (req, res) => {
       }
     }
 
+    let appliedCouponCode = "";
+    let validAdminDiscount = 0;
+
+    if (couponCode) {
+      const Offer = (await import("../model/offer.model.js")).default;
+      const offer = await Offer.findOne({
+        couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+        status: true
+      });
+
+      if (!offer) {
+        return res.status(400).json({ success: false, message: "Invalid or inactive coupon code" });
+      }
+
+      // Expiry check
+      const now = new Date();
+      if (offer.validFrom && now < new Date(offer.validFrom)) {
+        return res.status(400).json({ success: false, message: "This coupon is not valid yet" });
+      }
+      if (offer.validTo && now > new Date(offer.validTo)) {
+        return res.status(400).json({ success: false, message: "This coupon has expired" });
+      }
+
+      // Lab specificity
+      if (offer.labId && offer.labId.toString() !== registration.toString()) {
+        return res.status(400).json({ success: false, message: "This coupon is not valid for the selected lab" });
+      }
+
+      // One-Time Use check
+      const previousBooking = await Booking.findOne({
+        patient: patientId,
+        couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+        status: { $ne: "Cancelled" }
+      });
+
+      if (previousBooking) {
+        return res.status(400).json({ success: false, message: "You have already used this coupon" });
+      }
+
+      // Calculate discount
+      let discountValue = 0;
+      if (offer.discountPercent && offer.discountPercent > 0) {
+        discountValue = (finalAmount * offer.discountPercent) / 100;
+      } else if (offer.discountAmount && offer.discountAmount > 0) {
+        discountValue = offer.discountAmount;
+      }
+
+      finalAmount = Math.max(0, finalAmount - discountValue);
+      appliedCouponCode = offer.couponCode;
+
+      // Track if it's admin sponsored
+      if (!offer.labId) {
+        validAdminDiscount = discountValue;
+      }
+    }
+
     const newBooking = new Booking({
       patient: patientId,
       registration,
@@ -64,6 +120,8 @@ export const createBooking = async (req, res) => {
       address,
       paymentMethod,
       notes,
+      couponCode: appliedCouponCode,
+      adminDiscountAmount: validAdminDiscount,
     });
 
     await newBooking.save();
