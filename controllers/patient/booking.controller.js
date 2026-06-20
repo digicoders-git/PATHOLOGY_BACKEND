@@ -38,7 +38,7 @@ export const bookTest = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { labTestPricingId, slotId, paymentMode } = req.body;
+    const { labTestPricingId, slotId, paymentMode, couponCode, adminDiscountAmount } = req.body;
     const patientId = req.user.id;
 
     if (!labTestPricingId || !slotId) {
@@ -63,9 +63,62 @@ export const bookTest = async (req, res) => {
       throw new Error("Lab Test Pricing not found");
     }
 
-    // 3. Create Booking
-    const finalAmount = pricing.discountPrice ? parseFloat(pricing.discountPrice) : parseFloat(pricing.price);
+    // 3. Coupon Validation and Discount Calculation
+    let baseAmount = pricing.discountPrice ? parseFloat(pricing.discountPrice) : parseFloat(pricing.price);
+    let finalAmount = baseAmount;
+    let validAdminDiscount = 0;
+    let appliedCouponCode = "";
 
+    if (couponCode) {
+      const Offer = (await import("../../model/offer.model.js")).default;
+      const offer = await Offer.findOne({
+        couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+        status: true
+      }).session(session);
+
+      if (!offer) {
+        throw new Error("Invalid or inactive coupon code");
+      }
+
+      // Expiry check
+      const now = new Date();
+      if (offer.validFrom && now < new Date(offer.validFrom)) throw new Error("This coupon is not valid yet");
+      if (offer.validTo && now > new Date(offer.validTo)) throw new Error("This coupon has expired");
+
+      // Lab specificity
+      if (offer.labId && offer.labId.toString() !== pricing.registration.toString()) {
+        throw new Error("This coupon is not valid for the selected lab");
+      }
+
+      // One-Time Use check
+      const previousBooking = await TestBooking.findOne({
+        patientId: patientId,
+        couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+        bookingStatus: { $ne: "Cancelled" }
+      }).session(session);
+
+      if (previousBooking) {
+        throw new Error("You have already used this coupon");
+      }
+
+      // Calculate discount
+      let discountValue = 0;
+      if (offer.discountPercent && offer.discountPercent > 0) {
+        discountValue = (baseAmount * offer.discountPercent) / 100;
+      } else if (offer.discountAmount && offer.discountAmount > 0) {
+        discountValue = offer.discountAmount;
+      }
+
+      finalAmount = Math.max(0, baseAmount - discountValue);
+      appliedCouponCode = offer.couponCode;
+
+      // Track if it's admin sponsored
+      if (!offer.labId) {
+        validAdminDiscount = discountValue;
+      }
+    }
+
+    // 4. Create Booking
     const bookingData = {
       patientId,
       labTestPricingId,
@@ -75,7 +128,9 @@ export const bookTest = async (req, res) => {
       amount: finalAmount,
       paymentMode: paymentMode || "Cash on Collection",
       paymentStatus: paymentMode === "Online" ? "Paid" : "Pending",
-      bookingStatus: "Pending",  // ✅ Fixed - Initially Pending, lab will accept/decline
+      bookingStatus: "Pending",
+      couponCode: appliedCouponCode,
+      adminDiscountAmount: validAdminDiscount,
     };
 
     const booking = new TestBooking(bookingData);

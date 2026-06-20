@@ -231,11 +231,30 @@ export const updateBookingStatus = async (req, res) => {
     // 2. Try to find and update in app TestBooking model
     let appBooking = await TestBooking.findOne({ _id: bookingId, labId });
     if (appBooking) {
+      const oldStatus = appBooking.bookingStatus;
       appBooking.bookingStatus = status;
 
       // If cancelled, free up the slot
       if (status === "Cancelled" && appBooking.slotId) {
         await LabSlot.findByIdAndUpdate(appBooking.slotId, { isBooked: false });
+      }
+
+      // Wallet Logic: If marked as Completed for the first time, credit the lab's wallet
+      if (status === "Completed" && oldStatus !== "Completed" && appBooking.adminDiscountAmount > 0) {
+         const lab = await Registration.findById(labId);
+         if (lab) {
+            lab.walletBalance = (lab.walletBalance || 0) + appBooking.adminDiscountAmount;
+            await lab.save();
+
+            const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+            await WalletTransaction.create({
+               labId: labId,
+               amount: appBooking.adminDiscountAmount,
+               type: "credit",
+               description: `Admin Coupon Refund for Booking`,
+               relatedBookingId: bookingId
+            });
+         }
       }
 
       await appBooking.save();
@@ -371,7 +390,28 @@ export const uploadTestReport = async (req, res) => {
       }
       appBooking.reportFile = reportPath;
       appBooking.reportStatus = "Uploaded";
+      
+      const oldStatus = appBooking.bookingStatus;
       appBooking.bookingStatus = "Completed";
+
+      // Wallet Logic
+      if (oldStatus !== "Completed" && appBooking.adminDiscountAmount > 0) {
+         const lab = await Registration.findById(labId);
+         if (lab) {
+            lab.walletBalance = (lab.walletBalance || 0) + appBooking.adminDiscountAmount;
+            await lab.save();
+
+            const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+            await WalletTransaction.create({
+               labId: labId,
+               amount: appBooking.adminDiscountAmount,
+               type: "credit",
+               description: `Admin Coupon Refund for Booking`,
+               relatedBookingId: bookingId
+            });
+         }
+      }
+
       await appBooking.save();
       return res.json({
         success: true,

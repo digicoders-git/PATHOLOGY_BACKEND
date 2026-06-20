@@ -5,6 +5,7 @@ import { getMyTransactions } from "../../controllers/patient/transaction.control
 import { submitSupportQuery, getMySupportQueries } from "../../controllers/patient/support.controller.js";
 import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead, savePatientFCMToken, removePatientFCMToken } from "../../controllers/patient/patientNotification.controller.js";
 import { downloadReport } from "../../controllers/booking.controller.js";
+import { validateCoupon } from "../../controllers/offer.controller.js";
 import { patientAuth, patientAdminAuth } from "../../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../../middleware/verifyAdminToken.js";
 import upload from "../../middleware/multer.js";
@@ -18,6 +19,7 @@ router.get("/all-tests", getAllTestPricingForPatient);
 router.get("/slots", getAvailableSlots);
 
 // Protected routes
+router.post("/validate-coupon", patientAuth, validateCoupon);
 router.get("/profile", patientAuth, getProfile);
 router.put("/update-profile", patientAdminAuth, upload.single('profilePhoto'), updateProfile);
 router.post("/book-test", patientAuth, bookTest);

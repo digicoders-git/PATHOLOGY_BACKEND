@@ -57,6 +57,14 @@ const testBookingSchema = new mongoose.Schema(
     reportFile: {
       type: String,
       default: "",
+    },
+    couponCode: {
+      type: String,
+      default: "",
+    },
+    adminDiscountAmount: {
+      type: Number,
+      default: 0,
     }
   },
   { timestamps: true }

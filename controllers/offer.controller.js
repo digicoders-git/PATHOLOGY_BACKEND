@@ -165,3 +165,74 @@ export const toggleOfferStatus = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// ── VALIDATE COUPON (For Patient App) ─────────────────────────────────────────
+export const validateCoupon = async (req, res) => {
+  try {
+    const { couponCode, labId } = req.body;
+    const patientId = req.user?.id; // Assumes route is protected by patientAuth
+
+    if (!couponCode) {
+      return res.status(400).json({ success: false, message: "Coupon code is required" });
+    }
+
+    const query = {
+      couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+      status: true
+    };
+
+    const offer = await Offer.findOne(query);
+
+    if (!offer) {
+      return res.status(404).json({ success: false, message: "Invalid or inactive coupon code" });
+    }
+
+    // Check expiry
+    const now = new Date();
+    if (offer.validFrom && now < new Date(offer.validFrom)) {
+      return res.status(400).json({ success: false, message: "This coupon is not valid yet" });
+    }
+    if (offer.validTo && now > new Date(offer.validTo)) {
+      return res.status(400).json({ success: false, message: "This coupon has expired" });
+    }
+
+    // Check Lab specificity
+    if (offer.labId && labId) {
+      if (offer.labId.toString() !== labId.toString()) {
+        return res.status(400).json({ success: false, message: "This coupon is not valid for the selected lab" });
+      }
+    }
+
+    // Check One-Time Use (Has this patient already used this coupon?)
+    if (patientId) {
+      const TestBooking = (await import("../model/testBooking.model.js")).default;
+      const previousBooking = await TestBooking.findOne({
+        patientId: patientId,
+        couponCode: { $regex: new RegExp("^" + couponCode + "$", "i") },
+        bookingStatus: { $ne: "Cancelled" } // Ignore if they cancelled the previous booking
+      });
+
+      if (previousBooking) {
+        return res.status(400).json({ success: false, message: "You have already used this coupon" });
+      }
+    }
+
+    // If valid, return discount info
+    res.status(200).json({
+      success: true,
+      message: "Coupon is valid",
+      data: {
+        _id: offer._id,
+        title: offer.title,
+        couponCode: offer.couponCode,
+        discountPercent: offer.discountPercent,
+        discountAmount: offer.discountAmount,
+        offerType: offer.offerType,
+        isAdminOffer: !offer.labId
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
