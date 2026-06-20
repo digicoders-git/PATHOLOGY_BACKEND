@@ -1,6 +1,6 @@
 import express from 'express'
 import { create, get, login, deleteAdmin, updateAdmin, getById } from '../controllers/admin.controller.js'
-import { getAllSupportQueries, getSupportQueryById, updateSupportQuery, deleteSupportQuery } from '../controllers/admin/support.controller.js'
+import { getAllSupportQueries, getSupportQueryById, updateSupportQuery, deleteSupportQuery, replyToSupportQuery } from '../controllers/admin/support.controller.js'
 
 import upload from '../middleware/multer.js'
 
@@ -17,4 +17,5 @@ adminRoute.get('/get/:id', getById)
 adminRoute.get('/support', getAllSupportQueries)
 adminRoute.get('/support/:id', getSupportQueryById)
 adminRoute.put('/support/:id', updateSupportQuery)
+adminRoute.post('/support/:id/reply', replyToSupportQuery)
 adminRoute.delete('/support/:id', deleteSupportQuery)

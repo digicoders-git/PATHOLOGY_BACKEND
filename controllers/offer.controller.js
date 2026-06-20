@@ -1,6 +1,7 @@
 import Offer from "../model/offer.model.js";
 import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 import fs from "fs";
+import { sendNotificationToAllPatients } from "../services/notificationService.js";
 
 // ── CREATE ────────────────────────────────────────────────────────────────────
 export const createOffer = async (req, res) => {
@@ -33,6 +34,15 @@ export const createOffer = async (req, res) => {
       status: b.status === "false" ? false : true,
       sortOrder: Number(b.sortOrder) || 0,
     });
+
+    // Send FCM Notification to all patients if offer is active
+    if (offer.status) {
+      const title = "🔥 New Exciting Offer!";
+      const body = b.subtitle ? `${b.title} - ${b.subtitle}` : `Checkout our new offer: ${b.title}`;
+      
+      sendNotificationToAllPatients(title, body, { type: "OFFER", offerId: offer._id.toString() })
+        .catch(err => console.log("Failed to send Offer notification:", err.message));
+    }
 
     res.status(201).json({ success: true, message: "Offer created successfully", data: offer });
   } catch (err) {

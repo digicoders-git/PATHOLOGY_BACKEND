@@ -85,6 +85,22 @@ export const sendNotificationToAdmins = async (title, body, data = {}) => {
   }
 };
 
+// Send notification to all patients
+export const sendNotificationToAllPatients = async (title, body, data = {}) => {
+  try {
+    const patients = await Patient.find({}, 'fcmTokens');
+    const tokens = patients.flatMap(p => p.fcmTokens || []);
+    if (tokens.length === 0) {
+      console.log('No patient FCM tokens found');
+      return { success: false, message: 'No patient FCM tokens found' };
+    }
+    return await sendToTokens(tokens, title, body, data);
+  } catch (error) {
+    console.error('Error sending notification to patients:', error);
+    return { success: false, message: error.message };
+  }
+};
+
 // Send to list of tokens
 const sendToTokens = async (tokens, title, body, data = {}) => {
   const message = {
