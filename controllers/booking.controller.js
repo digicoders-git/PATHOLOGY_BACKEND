@@ -5,6 +5,7 @@ import TestService from "../model/testService.model.js";
 import { createNotification } from "./notification.controller.js";
 import { sendNotificationToUser, sendNotificationToAdmins } from "../services/notificationService.js";
 import path from "path";
+import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 import fs from "fs";
 
 // 1. Create a New Booking
@@ -502,6 +503,8 @@ export const uploadReport = async (req, res) => {
     }
 
     const reportPath = req.file.path.replace(/\\/g, "/");
+    const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/reports");
+    const finalReportUrl = cloudinaryUrl || reportPath;
 
     // Try Booking (direct) first
     let booking = await Booking.findById(id);
@@ -509,7 +512,7 @@ export const uploadReport = async (req, res) => {
       if (booking.status !== "Completed") {
         return res.status(400).json({ success: false, message: "Please mark the booking as Completed before uploading the report" });
       }
-      booking.reportFile = reportPath;
+      booking.reportFile = finalReportUrl;
       booking.reportUploadedAt = new Date();
       booking.reportStatus = "Uploaded";
       booking.status = "Completed";
@@ -624,6 +627,10 @@ export const downloadReport = async (req, res) => {
 
     if (!reportFile) {
       return res.status(404).json({ success: false, message: "Report not uploaded yet" });
+    }
+
+    if (reportFile.startsWith("http")) {
+      return res.redirect(reportFile);
     }
 
     const filePath = path.join(process.cwd(), reportFile);
