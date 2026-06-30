@@ -168,7 +168,7 @@ export const createBooking = async (req, res) => {
     });
     const populatedTests = await (await import('../model/testService.model.js')).default
       .find({ _id: { $in: tests } }).select('title');
-    const testTitles = populatedTests.map(t => t.title).join(', ');
+    const testTitles = populatedTests.map((t, i) => `${i + 1}. ${t.title}`).join(', ');
 
     // Prepare notification data
     const notificationData = {
@@ -307,7 +307,7 @@ export const getAllBookings = async (req, res) => {
         name: b.registration?.labName || "N/A",
         city: b.registration?.city || "—",
       },
-      testName: b.tests?.map((t) => t.test?.title).filter(Boolean).join(", ") || "—",
+      testName: b.tests?.map((t) => t.test?.title).filter(Boolean).map((title, i) => `${i + 1}. ${title}`).join(", ") || "—",
       testCount: b.tests?.length || 0,
       bookingDate: b.scheduledDate || b.bookingDate,
       slotTime: null,
