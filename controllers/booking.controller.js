@@ -10,8 +10,14 @@ import fs from "fs";
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
   try {
-    const { registration, tests, scheduledDate, sampleCollectionType, address, paymentMethod, notes, couponCode } = req.body;
+    const { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, notes, couponCode, bookingFor, contactName, contactNumber } = req.body;
     const patientId = req.user.id; // From Token
+    
+    // Process prescription file path if uploaded
+    let prescription = "";
+    if (req.file) {
+      prescription = req.file.path.replace(/\\/g, "/");
+    }
 
     if (!patientId || !registration || !tests || tests.length === 0) {
       return res.status(400).json({ success: false, message: "Missing required fields" });
@@ -116,10 +122,15 @@ export const createBooking = async (req, res) => {
       totalDiscount: totalMrp - finalAmount,
       finalAmount,
       scheduledDate,
+      scheduleTime,
+      prescription,
       sampleCollectionType,
       address,
       paymentMethod,
       notes,
+      bookingFor: bookingFor || "Myself",
+      contactName: contactName || "",
+      contactNumber: contactNumber || "",
       couponCode: appliedCouponCode,
       adminDiscountAmount: validAdminDiscount,
     });

@@ -37,7 +37,7 @@ const combinedAuth = (req, res, next) => {
 };
 
 // 1. Create Booking (Patient Token)
-router.post("/create", patientAuth, createBooking);
+router.post("/create", patientAuth, upload.single("prescription"), createBooking);
 
 // 2. Get All Bookings (Admin sees all, Patient sees own, Lab sees own)
 router.get("/get", combinedAuth, getAllBookings);

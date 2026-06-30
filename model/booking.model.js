@@ -41,6 +41,12 @@ const bookingSchema = new mongoose.Schema(
     scheduledDate: {
       type: Date,
     },
+    scheduleTime: {
+      type: String,
+    },
+    prescription: {
+      type: String, // Path to the uploaded prescription image
+    },
     sampleCollectionType: {
       type: String,
       enum: ["Home", "Lab"],
@@ -91,6 +97,18 @@ const bookingSchema = new mongoose.Schema(
     },
     notes: {
       type: String,
+    },
+    bookingFor: {
+      type: String,
+      default: "Myself"
+    },
+    contactName: {
+      type: String,
+      default: ""
+    },
+    contactNumber: {
+      type: String,
+      default: ""
     },
     couponCode: {
       type: String,
