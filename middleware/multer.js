@@ -31,8 +31,21 @@ const storage = multer.diskStorage({
   },
 });
 
+const fileFilter = (req, file, cb) => {
+  if (file.fieldname === "testReport") {
+    if (file.mimetype === "application/pdf" || path.extname(file.originalname).toLowerCase() === ".pdf") {
+      cb(null, true);
+    } else {
+      cb(new Error("Only PDF format is allowed for test reports"), false);
+    }
+  } else {
+    cb(null, true);
+  }
+};
+
 const upload = multer({
   storage,
+  fileFilter,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB Limit
 });
 
