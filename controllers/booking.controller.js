@@ -10,13 +10,31 @@ import fs from "fs";
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
   try {
-    const { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, notes, couponCode, bookingFor, contactName, contactNumber } = req.body;
+    let { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, notes, couponCode, bookingFor, contactName, contactNumber } = req.body;
     const patientId = req.user.id; // From Token
     
     // Process prescription file path if uploaded
     let prescription = "";
     if (req.file) {
       prescription = req.file.path.replace(/\\/g, "/");
+    }
+
+    // Handle form-data where tests might be stringified or sent as tests[0], tests[1]
+    if (!tests || (Array.isArray(tests) && tests.length === 0)) {
+      tests = [];
+      Object.keys(req.body).forEach(key => {
+        if (key.startsWith('tests[')) {
+          tests.push(req.body[key]);
+        }
+      });
+    }
+
+    if (typeof tests === 'string') {
+      try {
+        tests = JSON.parse(tests);
+      } catch (e) {
+        tests = [tests];
+      }
     }
 
     if (!patientId || !registration || !tests || tests.length === 0) {
