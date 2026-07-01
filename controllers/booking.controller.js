@@ -552,7 +552,7 @@ export const uploadReport = async (req, res) => {
       if (testBooking.bookingStatus !== "Completed") {
         return res.status(400).json({ success: false, message: "Please mark the booking as Completed before uploading the report" });
       }
-      testBooking.reportFile = reportPath;
+      testBooking.reportFile = finalReportUrl;
       testBooking.reportStatus = "Uploaded";
       testBooking.bookingStatus = "Completed";
       await testBooking.save();

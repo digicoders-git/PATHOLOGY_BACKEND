@@ -3,6 +3,7 @@ import Booking from "../../model/booking.model.js";
 import Patient from "../../model/patient/patient.model.js";
 import LabSlot from "../../model/labSlot.model.js";
 import mongoose from "mongoose";
+import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 
 /**
  * Get all bookings for the logged-in Pathology Lab (Merged from both systems)
@@ -382,7 +383,14 @@ export const uploadTestReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload a report file" });
     }
 
-    const reportPath = `uploads/reports/${req.file.filename}`;
+    const localFilePath = req.file.path;
+    const cloudinaryUrl = await uploadOnCloudinary(localFilePath);
+    
+    if (!cloudinaryUrl) {
+      return res.status(500).json({ success: false, message: "Failed to upload report to Cloudinary" });
+    }
+
+    const reportPath = cloudinaryUrl;
 
     // 1. Try to find and update in direct Booking model
     let booking = await Booking.findOne({ _id: bookingId, registration: labId });
