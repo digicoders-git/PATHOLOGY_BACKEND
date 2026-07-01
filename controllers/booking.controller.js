@@ -156,6 +156,24 @@ export const createBooking = async (req, res) => {
 
     await newBooking.save();
 
+    // Create Transaction Record for Patient App
+    try {
+      const Transaction = (await import("../model/transaction.model.js")).default;
+      const transactionData = {
+        userId: patientId,
+        userType: 'Patient',
+        relatedBooking: newBooking._id,
+        amount: finalAmount,
+        type: 'debit',
+        paymentMode: paymentMode || "Cash on Collection",
+        status: paymentMode === "Online" ? "success" : "pending",
+        description: `Payment for Test Booking (Date: ${scheduledDate})`
+      };
+      await Transaction.create(transactionData);
+    } catch (txErr) {
+      console.error("Failed to create transaction record:", txErr);
+    }
+
     // Get lab details for notification
     const Registration = (await import("../model/registration.model.js")).default;
     const lab = await Registration.findById(registration);
