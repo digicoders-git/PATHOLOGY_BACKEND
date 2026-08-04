@@ -717,7 +717,15 @@ export const downloadReport = async (req, res) => {
     }
 
     if (reportFile.startsWith("http")) {
-      return res.redirect(reportFile);
+      const secureUrl = reportFile.replace(/^http:/, 'https:');
+      const axios = (await import('axios')).default;
+      const response = await axios({
+        method: 'get',
+        url: secureUrl,
+        responseType: 'stream'
+      });
+      res.setHeader('Content-Type', response.headers['content-type'] || 'application/pdf');
+      return response.data.pipe(res);
     }
 
     const filePath = path.join(process.cwd(), reportFile);
