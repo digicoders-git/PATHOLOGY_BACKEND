@@ -94,14 +94,8 @@ app.get('/api/db-diagnostics', async (req, res) => {
     const mongoose = (await import('mongoose')).default;
     const Registration = (await import('./model/registration.model.js')).default;
     
-    // Find target labs matching Digi, phone, or having FCM tokens
-    const labs = await Registration.find({
-      $or: [
-        { phone: /811258/ },
-        { labName: /Digi/i },
-        { fcmTokens: { $exists: true, $ne: [] } }
-      ]
-    }).select('labName phone fcmTokens').lean();
+    // Find recently updated labs details
+    const labs = await Registration.find({}).sort({ updatedAt: -1 }).select('labName phone fcmTokens updatedAt').limit(5).lean();
     const labDetails = labs.map(l => ({
       name: l.labName,
       phone: l.phone,
