@@ -390,7 +390,8 @@ export const uploadTestReport = async (req, res) => {
     }
 
     const localFilePath = req.file.path;
-    const cloudinaryUrl = await uploadOnCloudinary(localFilePath);
+    const originalName = req.file.originalname || "";
+    const cloudinaryUrl = await uploadOnCloudinary(localFilePath, originalName);
     
     if (!cloudinaryUrl) {
       return res.status(500).json({ success: false, message: "Failed to upload report to Cloudinary" });

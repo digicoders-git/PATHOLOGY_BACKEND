@@ -1,11 +1,12 @@
 import cloudinary from "../config/cloudinary.js";
 import fs from "fs";
 
-export const uploadOnCloudinary = async (localFilePath) => {
+export const uploadOnCloudinary = async (localFilePath, originalName = "") => {
   try {
     if (!localFilePath) return null;
 
-    const isPdf = localFilePath.toLowerCase().endsWith('.pdf');
+    const checkPath = originalName || localFilePath;
+    const isPdf = checkPath.toLowerCase().endsWith('.pdf');
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: isPdf ? "raw" : "auto",
       folder: "pathology/packages"
