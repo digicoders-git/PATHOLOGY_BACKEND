@@ -127,35 +127,32 @@ export const verifyPlanPurchase = async (req, res) => {
             return res.status(404).json({ success: false, message: "Lab not found" });
         }
 
-        // Calculate expiry date
-        const expiryDate = new Date();
+        // Calculate expiry date based on plan duration (in days)
+        const now = new Date();
+        const expiryDate = new Date(now);
         expiryDate.setDate(expiryDate.getDate() + plan.duration);
 
         // Add purchased plan to lab's history
         lab.purchasedPlans.push({
             planId: plan._id,
-            purchaseDate: new Date(),
+            purchaseDate: now,
             expiryDate: expiryDate,
-            bookingsGranted: plan.freeBookings,
             status: "active"
         });
 
-        // Add bookings to lab's total
-        lab.totalBookings += plan.freeBookings;
+        // Set subscription expiry on the lab record
         lab.subscriptionExpiry = expiryDate;
 
         await lab.save();
 
         res.status(200).json({
             success: true,
-            message: `Payment verified and Plan purchased successfully! ${plan.freeBookings} bookings added.`,
+            message: `Payment verified! ${plan.name} plan activated successfully. Valid until ${expiryDate.toDateString()}.`,
             data: {
                 plan: plan.name,
-                bookingsAdded: plan.freeBookings,
-                totalBookings: lab.totalBookings,
-                usedBookings: lab.usedBookings,
-                remainingBookings: lab.totalBookings - lab.usedBookings,
-                expiryDate: expiryDate
+                duration: plan.duration,
+                expiryDate: expiryDate,
+                isActive: true
             }
         });
     } catch (error) {
@@ -176,29 +173,28 @@ export const getLabBookingStats = async (req, res) => {
         }
 
         // Get global default free bookings limit dynamically
-        let globalLimit = 10;
+        let globalFreeLimit = 10;
         try {
             const Setting = (await import("../model/settings.model.js")).default;
             const defaultSetting = await Setting.findOne({ key: "defaultFreeBookings" });
             if (defaultSetting) {
-                globalLimit = Number(defaultSetting.value);
+                globalFreeLimit = Number(defaultSetting.value);
             }
         } catch (err) {
             console.error("FAILED_TO_FETCH_SETTINGS_IN_STATS:", err);
         }
 
-        const hasPurchasedPlans = lab.purchasedPlans && lab.purchasedPlans.length > 0;
-        const effectiveLimit = hasPurchasedPlans ? (lab.totalBookings - 5 + globalLimit) : globalLimit;
-        const remainingBookings = effectiveLimit - lab.usedBookings;
+        const now = new Date();
+        const hasActivePlan = lab.subscriptionExpiry && new Date(lab.subscriptionExpiry) > now;
         
         res.status(200).json({
             success: true,
             data: {
-                totalBookings: effectiveLimit,
-                usedBookings: lab.usedBookings,
-                remainingBookings: remainingBookings,
-                freeBookings: globalLimit,
+                hasActivePlan: hasActivePlan,
                 subscriptionExpiry: lab.subscriptionExpiry,
+                freeBookingsUsed: lab.usedBookings || 0,
+                freeBookingsLimit: globalFreeLimit,
+                remainingFreeBookings: hasActivePlan ? null : Math.max(0, globalFreeLimit - (lab.usedBookings || 0)),
                 purchasedPlans: lab.purchasedPlans
             }
         });

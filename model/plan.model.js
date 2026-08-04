@@ -23,16 +23,6 @@ const planSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  totalBookings: {
-    type: Number,
-    default: 0,
-    required: true
-  },
-  freeBookings: {
-    type: Number,
-    default: 0,
-    required: true
-  },
   duration: {
     type: Number,
     default: 30,

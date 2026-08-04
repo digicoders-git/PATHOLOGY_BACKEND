@@ -189,33 +189,38 @@ export const updateBookingStatus = async (req, res) => {
       }
 
       // Get global default free bookings limit dynamically
-      let globalLimit = 10;
+      let globalFreeLimit = 10;
       try {
         const Setting = (await import("../../model/settings.model.js")).default;
         const defaultSetting = await Setting.findOne({ key: "defaultFreeBookings" });
         if (defaultSetting) {
-          globalLimit = Number(defaultSetting.value);
+          globalFreeLimit = Number(defaultSetting.value);
         }
       } catch (err) {
         console.error("FAILED_TO_FETCH_SETTINGS_IN_BOOKINGS:", err);
       }
 
-      const hasPurchasedPlans = lab.purchasedPlans && lab.purchasedPlans.length > 0;
-      const effectiveLimit = hasPurchasedPlans ? (lab.totalBookings - 5 + globalLimit) : globalLimit;
+      // Check if lab has an active plan (subscription not expired)
+      const now = new Date();
+      const hasActivePlan = lab.subscriptionExpiry && new Date(lab.subscriptionExpiry) > now;
 
-      // Check if lab has available bookings
-      const remainingBookings = effectiveLimit - lab.usedBookings;
-      if (remainingBookings <= 0) {
-        return res.status(403).json({
-          success: false,
-          message: "You have exhausted your free bookings. Please purchase a plan to continue accepting bookings.",
-          needsPurchase: true
-        });
+      if (hasActivePlan) {
+        // Lab has an active plan — unlimited bookings allowed
+        // No limit check needed
+      } else {
+        // No active plan — check free booking limit
+        const usedBookings = lab.usedBookings || 0;
+        if (usedBookings >= globalFreeLimit) {
+          return res.status(403).json({
+            success: false,
+            message: `You have used all ${globalFreeLimit} free bookings. Please purchase a plan to continue accepting unlimited bookings.`,
+            needsPurchase: true
+          });
+        }
+        // Increment used free bookings
+        lab.usedBookings = usedBookings + 1;
+        await lab.save();
       }
-
-      // Increment used bookings
-      lab.usedBookings += 1;
-      await lab.save();
     }
 
     // 1. Try to find and update in direct Booking model
