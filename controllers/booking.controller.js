@@ -154,7 +154,30 @@ export const createBooking = async (req, res) => {
       adminDiscountAmount: validAdminDiscount,
     });
 
+    // Check if it's the first booking before saving
+    const oldBookingCount = await Booking.countDocuments({ patient: patientId, status: { $ne: "Cancelled" } });
+    const TestBookingModel = (await import("../model/testBooking.model.js")).default;
+    const newBookingCount = await TestBookingModel.countDocuments({ patientId, bookingStatus: { $ne: "Cancelled" } });
+    const isFirstBooking = (oldBookingCount + newBookingCount) === 0;
+
     await newBooking.save();
+
+    // Handle First Booking Wallet Credit
+    if (isFirstBooking) {
+      const Patient = (await import("../model/patient/patient.model.js")).default;
+      await Patient.findByIdAndUpdate(patientId, { $inc: { walletBalance: 100 } });
+      
+      const Transaction = (await import("../model/transaction.model.js")).default;
+      await new Transaction({
+        userId: patientId,
+        userType: 'Patient',
+        amount: 100,
+        type: 'credit',
+        status: 'success',
+        description: 'Cashback for First Booking',
+        relatedBooking: newBooking._id,
+      }).save();
+    }
 
     // Create Transaction Record for Patient App
     try {
@@ -234,7 +257,10 @@ export const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Booking created successfully",
+      message: isFirstBooking 
+          ? "Booking created! You received ₹100 cashback in your wallet for your first booking." 
+          : "Booking created successfully",
+      cashbackEarned: isFirstBooking ? 100 : 0,
       data: newBooking,
     });
   } catch (error) {
