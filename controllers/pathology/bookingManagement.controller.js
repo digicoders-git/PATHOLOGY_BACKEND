@@ -402,6 +402,48 @@ export const uploadTestReport = async (req, res) => {
       booking.reportUploadedAt = new Date();
       booking.reportStatus = "Uploaded";
       booking.status = "Completed";
+
+      // Transfer First Booking Cashback from Patient to Lab
+      if (booking.cashbackEarned > 0) {
+        const PatientModel = (await import("../../model/patient/patient.model.js")).default;
+        const patient = await PatientModel.findById(booking.patient);
+        const Registration = (await import("../../model/registration.model.js")).default;
+        const lab = await Registration.findById(booking.registration);
+
+        if (patient && lab) {
+          // Deduct from Patient
+          patient.walletBalance = (patient.walletBalance || 0) - booking.cashbackEarned;
+          await patient.save();
+
+          const Transaction = (await import("../../model/transaction.model.js")).default;
+          await new Transaction({
+            userId: patient._id,
+            userType: 'Patient',
+            amount: booking.cashbackEarned,
+            type: 'debit',
+            status: 'success',
+            description: 'Cashback Transferred to Lab on Report Upload',
+            relatedBooking: booking._id,
+          }).save();
+
+          // Credit to Lab
+          lab.walletBalance = (lab.walletBalance || 0) + booking.cashbackEarned;
+          await lab.save();
+
+          const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+          await WalletTransaction.create({
+             labId: lab._id,
+             amount: booking.cashbackEarned,
+             type: "credit",
+             description: "First Booking Reward Transferred from Patient",
+             relatedBookingId: booking._id
+          });
+
+          // Set to 0 so it doesn't transfer again if they re-upload
+          booking.cashbackEarned = 0;
+        }
+      }
+
       await booking.save();
       return res.json({
         success: true,
