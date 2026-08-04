@@ -89,6 +89,27 @@ app.get('/endpoints', (req, res) => {
   res.status(200).json(JSON.parse(data));
 });
 
+app.get('/api/db-diagnostics', async (req, res) => {
+  try {
+    const mongoose = (await import('mongoose')).default;
+    const collections = await mongoose.connection.db.listCollections().toArray();
+    const colNames = collections.map(c => c.name);
+    const counts = {};
+    for (const name of colNames) {
+      counts[name] = await mongoose.connection.db.collection(name).countDocuments({});
+    }
+    const maskedUri = (process.env.MONGODB_URI || '').replace(/:([^@]+)@/, ':****@');
+    res.json({
+      success: true,
+      dbName: mongoose.connection.db.databaseName,
+      maskedUri,
+      counts
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 app.use('/admin', adminRoute)
 app.use('/test-service', testServiceRouter)
 app.use('/registrations', registrationRouter)
