@@ -3,8 +3,8 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 
 const getRazorpay = () => new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'SMtig3JkAqFP7nIMpODyyuAL',
 });
 
 // Create a new plan (Admin)
@@ -85,7 +85,7 @@ export const createPlanPurchaseOrder = async (req, res) => {
                 orderId: order.id,
                 amount: order.amount,
                 currency: order.currency,
-                keyId: process.env.RAZORPAY_KEY_ID,
+                keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
                 plan: { name: plan.name, price: plan.price },
             },
         });
@@ -196,6 +196,81 @@ export const getLabBookingStats = async (req, res) => {
                 freeBookingsLimit: globalFreeLimit,
                 remainingFreeBookings: hasActivePlan ? null : Math.max(0, globalFreeLimit - (lab.usedBookings || 0)),
                 purchasedPlans: lab.purchasedPlans
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Purchase Plan Using Lab Wallet Balance
+export const purchasePlanWithWallet = async (req, res) => {
+    try {
+        const { planId } = req.body;
+        const labId = req.user.id;
+
+        if (!planId) {
+            return res.status(400).json({ success: false, message: "planId is required" });
+        }
+
+        const plan = await Plan.findById(planId);
+        if (!plan) {
+            return res.status(404).json({ success: false, message: "Plan not found" });
+        }
+
+        const Registration = (await import("../model/registration.model.js")).default;
+        const lab = await Registration.findById(labId);
+        if (!lab) {
+            return res.status(404).json({ success: false, message: "Lab not found" });
+        }
+
+        const balance = lab.walletBalance || 0;
+        if (balance < plan.price) {
+            return res.status(400).json({ success: false, message: `Insufficient wallet balance. You need ₹${plan.price} but only have ₹${balance}.` });
+        }
+
+        // Deduct balance
+        lab.walletBalance = balance - plan.price;
+
+        // Calculate expiry date based on plan duration (in days)
+        const now = new Date();
+        const expiryDate = new Date(now);
+        expiryDate.setDate(expiryDate.getDate() + plan.duration);
+
+        // Add purchased plan to lab's history
+        lab.purchasedPlans.push({
+            planId: plan._id,
+            purchaseDate: now,
+            expiryDate: expiryDate,
+            status: "active"
+        });
+
+        // Set previous active plans as expired
+        lab.purchasedPlans.forEach(p => {
+            if (p.planId.toString() !== plan._id.toString() && p.status === 'active') {
+                p.status = 'expired';
+            }
+        });
+
+        lab.subscriptionExpiry = expiryDate;
+        await lab.save();
+
+        // Create wallet transaction record
+        const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+        await WalletTransaction.create({
+            labId: lab._id,
+            amount: plan.price,
+            type: "debit",
+            description: `Deducted for purchasing plan: ${plan.name}`,
+            status: "success"
+        });
+
+        res.status(200).json({
+            success: true,
+            message: `Plan purchased successfully using wallet balance! ${plan.name} plan active.`,
+            data: {
+                subscriptionExpiry: expiryDate,
+                walletBalance: lab.walletBalance
             }
         });
     } catch (error) {

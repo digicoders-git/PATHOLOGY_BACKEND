@@ -6,8 +6,8 @@ import { sendNotificationToUser } from "../../services/notificationService.js";
 
 // Lazy init — env variables load hone ke baad
 const getRazorpay = () => new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'SMtig3JkAqFP7nIMpODyyuAL',
 });
 
 // ── Helper: reset period counters if needed ───────────────────────────────────
@@ -267,7 +267,7 @@ export const createPurchaseOrder = async (req, res) => {
         orderId: order.id,
         amount: order.amount,
         currency: order.currency,
-        keyId: process.env.RAZORPAY_KEY_ID,
+        keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
         package: { name: pkg.packageName, price: pkg.price },
       },
     });
