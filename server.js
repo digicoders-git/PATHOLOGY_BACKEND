@@ -92,6 +92,11 @@ app.get('/endpoints', (req, res) => {
 app.get('/api/db-diagnostics', async (req, res) => {
   try {
     const mongoose = (await import('mongoose')).default;
+    const Registration = (await import('./model/registration.model.js')).default;
+    
+    // Find target lab details
+    const lab = await Registration.findOne({ phone: "8112580707" }).select('labName phone fcmTokens').lean();
+
     const collections = await mongoose.connection.db.listCollections().toArray();
     const colNames = collections.map(c => c.name);
     const counts = {};
@@ -103,6 +108,12 @@ app.get('/api/db-diagnostics', async (req, res) => {
       success: true,
       dbName: mongoose.connection.db.databaseName,
       maskedUri,
+      labDetails: lab ? {
+        name: lab.labName,
+        phone: lab.phone,
+        fcmCount: (lab.fcmTokens || []).length,
+        tokens: (lab.fcmTokens || []).map(t => t.substring(0, 30) + '...')
+      } : null,
       counts
     });
   } catch (err) {
