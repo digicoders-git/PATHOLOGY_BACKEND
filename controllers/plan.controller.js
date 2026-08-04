@@ -50,6 +50,23 @@ export const deletePlan = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
+};// Toggle Plan Status (Admin)
+export const togglePlanStatus = async (req, res) => {
+    try {
+        const plan = await Plan.findById(req.params.id);
+        if (!plan) return res.status(404).json({ success: false, message: "Plan not found" });
+
+        plan.status = !plan.status;
+        await plan.save();
+
+        res.status(200).json({
+            success: true,
+            message: `Plan status updated to ${plan.status ? 'Active' : 'Inactive'}`,
+            data: plan
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 };
 
 // Create Purchase Order for a Plan (Lab)

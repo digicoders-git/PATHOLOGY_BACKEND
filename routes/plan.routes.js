@@ -1,5 +1,5 @@
 import express from "express";
-import { createPlan, getPlans, updatePlan, deletePlan, createPlanPurchaseOrder, verifyPlanPurchase, getLabBookingStats, purchasePlanWithWallet } from "../controllers/plan.controller.js";
+import { createPlan, getPlans, updatePlan, deletePlan, togglePlanStatus, createPlanPurchaseOrder, verifyPlanPurchase, getLabBookingStats, purchasePlanWithWallet } from "../controllers/plan.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import { pathologyAuth } from "../middleware/pathologyAuth.middleware.js";
 
@@ -12,6 +12,7 @@ router.get("/get", getPlans);
 router.post("/create", verifyAdminToken, createPlan);
 router.put("/:id", verifyAdminToken, updatePlan);
 router.delete("/:id", verifyAdminToken, deletePlan);
+router.patch("/:id/status", verifyAdminToken, togglePlanStatus);
 
 // Protected: Lab can purchase and view stats
 router.post("/purchase/order", pathologyAuth, createPlanPurchaseOrder);
