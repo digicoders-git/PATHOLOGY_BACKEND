@@ -389,15 +389,12 @@ export const uploadTestReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload a report file" });
     }
 
-    const localFilePath = req.file.path;
-    const originalName = req.file.originalname || "";
-    const cloudinaryUrl = await uploadOnCloudinary(localFilePath, originalName);
+    const localFilePath = req.file.path.replace(/\\/g, "/");
+    const fullUrl = `${req.protocol}://${req.get("host")}/${localFilePath}`;
     
-    if (!cloudinaryUrl) {
-      return res.status(500).json({ success: false, message: "Failed to upload report to Cloudinary" });
-    }
-
-    const reportPath = cloudinaryUrl;
+    // Cloudinary restricts PDF delivery by default, causing 401 Unauthorized errors on download.
+    // Instead of Cloudinary, we serve the report locally using the static uploads folder.
+    const reportPath = fullUrl;
 
     // 1. Try to find and update in direct Booking model
     let booking = await Booking.findOne({ _id: bookingId, registration: labId });

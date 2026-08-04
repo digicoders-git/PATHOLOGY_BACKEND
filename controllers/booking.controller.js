@@ -548,8 +548,11 @@ export const uploadReport = async (req, res) => {
     }
 
     const reportPath = req.file.path.replace(/\\/g, "/");
-    const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/reports");
-    const finalReportUrl = cloudinaryUrl || reportPath;
+    const fullUrl = `${req.protocol}://${req.get("host")}/${reportPath}`;
+    
+    // Cloudinary restricts PDF delivery by default, causing 401 Unauthorized errors.
+    // We bypass Cloudinary and serve the report locally using the static uploads folder.
+    const finalReportUrl = fullUrl;
 
     // Try Booking (direct) first
     let booking = await Booking.findById(id);
