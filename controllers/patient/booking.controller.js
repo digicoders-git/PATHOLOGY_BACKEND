@@ -69,6 +69,9 @@ export const bookTest = async (req, res) => {
     let validAdminDiscount = 0;
     let appliedCouponCode = "";
 
+    // 3a. Check for First Booking
+    const isFirstBooking = (await TestBooking.countDocuments({ patientId, bookingStatus: { $ne: "Cancelled" } }).session(session)) === 0;
+
     if (couponCode) {
       const Offer = (await import("../../model/offer.model.js")).default;
       const offer = await Offer.findOne({
@@ -138,7 +141,24 @@ export const bookTest = async (req, res) => {
     const booking = new TestBooking(bookingData);
     await booking.save({ session });
 
-    // 4. Create Transaction Record
+    // Handle First Booking Wallet Credit
+    if (isFirstBooking) {
+      const Patient = (await import("../../model/patient/patient.model.js")).default;
+      await Patient.findByIdAndUpdate(patientId, { $inc: { walletBalance: 100 } }, { session });
+      
+      const Transaction = (await import("../../model/transaction.model.js")).default;
+      await new Transaction({
+        userId: patientId,
+        userType: 'Patient',
+        amount: 100,
+        type: 'credit',
+        status: 'success',
+        description: 'Cashback for First Booking',
+        relatedBooking: booking._id,
+      }).save({ session });
+    }
+
+    // 5. Create Transaction Record for Payment
     const Transaction = (await import("../../model/transaction.model.js")).default;
     const transactionData = {
       userId: patientId,

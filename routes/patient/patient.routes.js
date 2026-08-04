@@ -1,7 +1,7 @@
 import express from "express";
 import { sendOtp, verifyOtp, updateProfile, getProfile, updateStatus, getAllPatients, getAllTestPricingForPatient } from "../../controllers/patient/patient.controller.js";
 import { getAvailableSlots, bookTest, getMyBookings } from "../../controllers/patient/booking.controller.js";
-import { getMyTransactions } from "../../controllers/patient/transaction.controller.js";
+import { getMyTransactions, getWalletData } from "../../controllers/patient/transaction.controller.js";
 import { submitSupportQuery, getMySupportQueries } from "../../controllers/patient/support.controller.js";
 import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead, savePatientFCMToken, removePatientFCMToken } from "../../controllers/patient/patientNotification.controller.js";
 import { downloadReport } from "../../controllers/booking.controller.js";
@@ -25,6 +25,7 @@ router.put("/update-profile", patientAdminAuth, upload.single('profilePhoto'), u
 router.post("/book-test", patientAuth, bookTest);
 router.get("/my-bookings", patientAuth, getMyBookings);
 router.get("/transactions", patientAuth, getMyTransactions);
+router.get("/wallet", patientAuth, getWalletData);
 router.get("/download-report/:id", patientAuth, downloadReport);
 
 // Support / Contact routes
