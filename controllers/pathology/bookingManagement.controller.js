@@ -4,6 +4,7 @@ import Patient from "../../model/patient/patient.model.js";
 import LabSlot from "../../model/labSlot.model.js";
 import mongoose from "mongoose";
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
+import { sendNotificationToUser } from "../../services/notificationService.js";
 
 /**
  * Get all bookings for the logged-in Pathology Lab (Merged from both systems)
@@ -438,6 +439,15 @@ export const uploadTestReport = async (req, res) => {
              description: "First Booking Reward Transferred from Patient",
              relatedBookingId: booking._id
           });
+
+          // Send push notification to Lab about wallet credit
+          await sendNotificationToUser(
+             lab._id.toString(),
+             '💸 Wallet Credited!',
+             `₹${booking.cashbackEarned} has been credited to your wallet for first booking reward.`,
+             { type: 'wallet_credit', amount: String(booking.cashbackEarned), bookingId: booking._id.toString() },
+             'pathology'
+          ).catch(err => console.error('Error sending lab wallet notification:', err));
 
           // Set to 0 so it doesn't transfer again if they re-upload
           booking.cashbackEarned = 0;
