@@ -203,15 +203,15 @@ export const updateBookingStatus = async (req, res) => {
       const hasPurchasedPlans = lab.purchasedPlans && lab.purchasedPlans.length > 0;
       const effectiveLimit = hasPurchasedPlans ? (lab.totalBookings - 5 + globalLimit) : globalLimit;
 
-      // Check if lab has available bookings
+      // Check if lab has available bookings (DISABLED AS PER USER REQUEST)
       const remainingBookings = effectiveLimit - lab.usedBookings;
-      if (remainingBookings <= 0) {
-        return res.status(403).json({
-          success: false,
-          message: "You have exhausted your free bookings. Please purchase a plan to continue accepting bookings.",
-          needsPurchase: true
-        });
-      }
+      // if (remainingBookings <= 0) {
+      //   return res.status(403).json({
+      //     success: false,
+      //     message: "You have exhausted your free bookings. Please purchase a plan to continue accepting bookings.",
+      //     needsPurchase: true
+      //   });
+      // }
 
       // Increment used bookings
       lab.usedBookings += 1;
