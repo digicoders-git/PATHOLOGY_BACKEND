@@ -94,8 +94,14 @@ app.get('/api/db-diagnostics', async (req, res) => {
     const mongoose = (await import('mongoose')).default;
     const Registration = (await import('./model/registration.model.js')).default;
     
-    // Find target lab details
-    const lab = await Registration.findOne({ phone: "8112580707" }).select('labName phone fcmTokens').lean();
+    // Find all labs details
+    const labs = await Registration.find({}).select('labName phone fcmTokens').limit(20).lean();
+    const labDetails = labs.map(l => ({
+      name: l.labName,
+      phone: l.phone,
+      fcmCount: (l.fcmTokens || []).length,
+      tokens: (l.fcmTokens || []).map(t => t.substring(0, 15) + '...')
+    }));
 
     const collections = await mongoose.connection.db.listCollections().toArray();
     const colNames = collections.map(c => c.name);
@@ -108,12 +114,7 @@ app.get('/api/db-diagnostics', async (req, res) => {
       success: true,
       dbName: mongoose.connection.db.databaseName,
       maskedUri,
-      labDetails: lab ? {
-        name: lab.labName,
-        phone: lab.phone,
-        fcmCount: (lab.fcmTokens || []).length,
-        tokens: (lab.fcmTokens || []).map(t => t.substring(0, 30) + '...')
-      } : null,
+      labDetails,
       counts
     });
   } catch (err) {
