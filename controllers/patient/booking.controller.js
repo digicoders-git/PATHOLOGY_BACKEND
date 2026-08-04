@@ -254,7 +254,10 @@ export const bookTest = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Booking created successfully. Waiting for lab confirmation.",
+      message: isFirstBooking 
+          ? "Booking created! You received ₹100 cashback in your wallet for your first booking." 
+          : "Booking created successfully. Waiting for lab confirmation.",
+      cashbackEarned: isFirstBooking ? 100 : 0,
       data: confirmedBooking,
     });
   } catch (error) {
