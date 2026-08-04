@@ -89,38 +89,7 @@ app.get('/endpoints', (req, res) => {
   res.status(200).json(JSON.parse(data));
 });
 
-app.get('/api/db-diagnostics', async (req, res) => {
-  try {
-    const mongoose = (await import('mongoose')).default;
-    const Registration = (await import('./model/registration.model.js')).default;
-    
-    // Find recently updated labs details
-    const labs = await Registration.find({}).sort({ updatedAt: -1 }).select('labName phone fcmTokens updatedAt').limit(5).lean();
-    const labDetails = labs.map(l => ({
-      name: l.labName,
-      phone: l.phone,
-      fcmCount: (l.fcmTokens || []).length,
-      tokens: (l.fcmTokens || []).map(t => t.substring(0, 15) + '...')
-    }));
 
-    const collections = await mongoose.connection.db.listCollections().toArray();
-    const colNames = collections.map(c => c.name);
-    const counts = {};
-    for (const name of colNames) {
-      counts[name] = await mongoose.connection.db.collection(name).countDocuments({});
-    }
-    const maskedUri = (process.env.MONGODB_URI || '').replace(/:([^@]+)@/, ':****@');
-    res.json({
-      success: true,
-      dbName: mongoose.connection.db.databaseName,
-      maskedUri,
-      labDetails,
-      counts
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
 
 app.use('/admin', adminRoute)
 app.use('/test-service', testServiceRouter)
