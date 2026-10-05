@@ -47,6 +47,10 @@ const patientSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    walletBalance: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );

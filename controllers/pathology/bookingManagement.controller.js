@@ -4,6 +4,7 @@ import Patient from "../../model/patient/patient.model.js";
 import LabSlot from "../../model/labSlot.model.js";
 import mongoose from "mongoose";
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
+import { sendNotificationToUser } from "../../services/notificationService.js";
 
 /**
  * Get all bookings for the logged-in Pathology Lab (Merged from both systems)
@@ -188,33 +189,38 @@ export const updateBookingStatus = async (req, res) => {
       }
 
       // Get global default free bookings limit dynamically
-      let globalLimit = 10;
+      let globalFreeLimit = 10;
       try {
         const Setting = (await import("../../model/settings.model.js")).default;
         const defaultSetting = await Setting.findOne({ key: "defaultFreeBookings" });
         if (defaultSetting) {
-          globalLimit = Number(defaultSetting.value);
+          globalFreeLimit = Number(defaultSetting.value);
         }
       } catch (err) {
         console.error("FAILED_TO_FETCH_SETTINGS_IN_BOOKINGS:", err);
       }
 
-      const hasPurchasedPlans = lab.purchasedPlans && lab.purchasedPlans.length > 0;
-      const effectiveLimit = hasPurchasedPlans ? (lab.totalBookings - 5 + globalLimit) : globalLimit;
+      // Check if lab has an active plan (subscription not expired)
+      const now = new Date();
+      const hasActivePlan = lab.subscriptionExpiry && new Date(lab.subscriptionExpiry) > now;
 
-      // Check if lab has available bookings
-      const remainingBookings = effectiveLimit - lab.usedBookings;
-      if (remainingBookings <= 0) {
-        return res.status(403).json({
-          success: false,
-          message: "You have exhausted your free bookings. Please purchase a plan to continue accepting bookings.",
-          needsPurchase: true
-        });
+      if (hasActivePlan) {
+        // Lab has an active plan — unlimited bookings allowed
+        // No limit check needed
+      } else {
+        // No active plan — check free booking limit
+        const usedBookings = lab.usedBookings || 0;
+        if (usedBookings >= globalFreeLimit) {
+          return res.status(403).json({
+            success: false,
+            message: `You have used all ${globalFreeLimit} free bookings. Please purchase a plan to continue accepting unlimited bookings.`,
+            needsPurchase: true
+          });
+        }
+        // Increment used free bookings
+        lab.usedBookings = usedBookings + 1;
+        await lab.save();
       }
-
-      // Increment used bookings
-      lab.usedBookings += 1;
-      await lab.save();
     }
 
     // 1. Try to find and update in direct Booking model
@@ -383,14 +389,12 @@ export const uploadTestReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload a report file" });
     }
 
-    const localFilePath = req.file.path;
-    const cloudinaryUrl = await uploadOnCloudinary(localFilePath);
+    const localFilePath = req.file.path.replace(/\\/g, "/");
+    const fullUrl = `${req.protocol}://${req.get("host")}/${localFilePath}`;
     
-    if (!cloudinaryUrl) {
-      return res.status(500).json({ success: false, message: "Failed to upload report to Cloudinary" });
-    }
-
-    const reportPath = cloudinaryUrl;
+    // Cloudinary restricts PDF delivery by default, causing 401 Unauthorized errors on download.
+    // Instead of Cloudinary, we serve the report locally using the static uploads folder.
+    const reportPath = fullUrl;
 
     // 1. Try to find and update in direct Booking model
     let booking = await Booking.findOne({ _id: bookingId, registration: labId });
@@ -402,6 +406,57 @@ export const uploadTestReport = async (req, res) => {
       booking.reportUploadedAt = new Date();
       booking.reportStatus = "Uploaded";
       booking.status = "Completed";
+
+      // Transfer First Booking Cashback from Patient to Lab
+      if (booking.cashbackEarned > 0) {
+        const PatientModel = (await import("../../model/patient/patient.model.js")).default;
+        const patient = await PatientModel.findById(booking.patient);
+        const Registration = (await import("../../model/registration.model.js")).default;
+        const lab = await Registration.findById(booking.registration);
+
+        if (patient && lab) {
+          // Deduct from Patient
+          patient.walletBalance = (patient.walletBalance || 0) - booking.cashbackEarned;
+          await patient.save();
+
+          const Transaction = (await import("../../model/transaction.model.js")).default;
+          await new Transaction({
+            userId: patient._id,
+            userType: 'Patient',
+            amount: booking.cashbackEarned,
+            type: 'debit',
+            status: 'success',
+            description: 'Cashback Transferred to Lab on Report Upload',
+            relatedBooking: booking._id,
+          }).save();
+
+          // Credit to Lab
+          lab.walletBalance = (lab.walletBalance || 0) + booking.cashbackEarned;
+          await lab.save();
+
+          const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+          await WalletTransaction.create({
+             labId: lab._id,
+             amount: booking.cashbackEarned,
+             type: "credit",
+             description: "First Booking Reward Transferred from Patient",
+             relatedBookingId: booking._id
+          });
+
+          // Send push notification to Lab about wallet credit
+          await sendNotificationToUser(
+             lab._id.toString(),
+             '💸 Wallet Credited!',
+             `₹${booking.cashbackEarned} has been credited to your wallet for first booking reward.`,
+             { type: 'wallet_credit', amount: String(booking.cashbackEarned), bookingId: booking._id.toString() },
+             'pathology'
+          ).catch(err => console.error('Error sending lab wallet notification:', err));
+
+          // Set to 0 so it doesn't transfer again if they re-upload
+          booking.cashbackEarned = 0;
+        }
+      }
+
       await booking.save();
       return res.json({
         success: true,

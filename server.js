@@ -89,6 +89,8 @@ app.get('/endpoints', (req, res) => {
   res.status(200).json(JSON.parse(data));
 });
 
+
+
 app.use('/admin', adminRoute)
 app.use('/test-service', testServiceRouter)
 app.use('/registrations', registrationRouter)

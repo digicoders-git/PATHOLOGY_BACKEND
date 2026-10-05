@@ -283,7 +283,7 @@ export const getAllRegistrations = async (req, res) => {
     }
     if (tabStatsQuery.$and.length === 0) delete tabStatsQuery.$and;
 
-    const [total, registrations, typeStats, statusStats, sourceStats, individualTotal, parentTotal, parentStatsByReg] = await Promise.all([
+    const [total, registrationsDocs, typeStats, statusStats, sourceStats, individualTotal, parentTotal, parentStatsByReg] = await Promise.all([
       Registration.countDocuments(query),
       Registration.find(query)
         .populate("selectedTests")
@@ -331,6 +331,15 @@ export const getAllRegistrations = async (req, res) => {
         }
       ])
     ]);
+
+    const regIds = registrationsDocs.map(r => r._id);
+    const labTestPricings = await LabTestPricing.find({ registration: { $in: regIds } }).populate("test");
+
+    const registrations = registrationsDocs.map(reg => {
+      const obj = reg.toObject();
+      obj.testPricing = labTestPricings.filter(p => p.registration.toString() === obj._id.toString());
+      return obj;
+    });
 
     res.status(200).json({
       success: true,

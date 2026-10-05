@@ -133,6 +133,12 @@ export const createBooking = async (req, res) => {
       }
     }
 
+    // Check if it's the first booking before saving
+    const oldBookingCount = await Booking.countDocuments({ patient: patientId, status: { $ne: "Cancelled" } });
+    const TestBookingModel = (await import("../model/testBooking.model.js")).default;
+    const newBookingCount = await TestBookingModel.countDocuments({ patientId, bookingStatus: { $ne: "Cancelled" } });
+    const isFirstBooking = (oldBookingCount + newBookingCount) === 0;
+
     const newBooking = new Booking({
       patient: patientId,
       registration,
@@ -152,9 +158,27 @@ export const createBooking = async (req, res) => {
       contactNumber: contactNumber || "",
       couponCode: appliedCouponCode,
       adminDiscountAmount: validAdminDiscount,
+      cashbackEarned: isFirstBooking ? 100 : 0,
     });
 
     await newBooking.save();
+
+    // Handle First Booking Wallet Credit
+    if (isFirstBooking) {
+      const Patient = (await import("../model/patient/patient.model.js")).default;
+      await Patient.findByIdAndUpdate(patientId, { $inc: { walletBalance: 100 } });
+      
+      const Transaction = (await import("../model/transaction.model.js")).default;
+      await new Transaction({
+        userId: patientId,
+        userType: 'Patient',
+        amount: 100,
+        type: 'credit',
+        status: 'success',
+        description: 'Cashback for First Booking',
+        relatedBooking: newBooking._id,
+      }).save();
+    }
 
     // Create Transaction Record for Patient App
     try {
@@ -234,7 +258,10 @@ export const createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Booking created successfully",
+      message: isFirstBooking 
+          ? "Booking created! You received ₹100 cashback in your wallet for your first booking." 
+          : "Booking created successfully",
+      cashbackEarned: isFirstBooking ? 100 : 0,
       data: newBooking,
     });
   } catch (error) {
@@ -521,8 +548,11 @@ export const uploadReport = async (req, res) => {
     }
 
     const reportPath = req.file.path.replace(/\\/g, "/");
-    const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/reports");
-    const finalReportUrl = cloudinaryUrl || reportPath;
+    const fullUrl = `${req.protocol}://${req.get("host")}/${reportPath}`;
+    
+    // Cloudinary restricts PDF delivery by default, causing 401 Unauthorized errors.
+    // We bypass Cloudinary and serve the report locally using the static uploads folder.
+    const finalReportUrl = fullUrl;
 
     // Try Booking (direct) first
     let booking = await Booking.findById(id);
@@ -534,6 +564,48 @@ export const uploadReport = async (req, res) => {
       booking.reportUploadedAt = new Date();
       booking.reportStatus = "Uploaded";
       booking.status = "Completed";
+      
+      // Transfer First Booking Cashback from Patient to Lab
+      if (booking.cashbackEarned > 0) {
+        const Patient = (await import("../model/patient/patient.model.js")).default;
+        const patient = await Patient.findById(booking.patient);
+        const Registration = (await import("../model/registration.model.js")).default;
+        const lab = await Registration.findById(booking.registration);
+
+        if (patient && lab) {
+          // Deduct from Patient
+          patient.walletBalance = (patient.walletBalance || 0) - booking.cashbackEarned;
+          await patient.save();
+
+          const Transaction = (await import("../model/transaction.model.js")).default;
+          await new Transaction({
+            userId: patient._id,
+            userType: 'Patient',
+            amount: booking.cashbackEarned,
+            type: 'debit',
+            status: 'success',
+            description: 'Cashback Transferred to Lab on Report Upload',
+            relatedBooking: booking._id,
+          }).save();
+
+          // Credit to Lab
+          lab.walletBalance = (lab.walletBalance || 0) + booking.cashbackEarned;
+          await lab.save();
+
+          const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+          await WalletTransaction.create({
+             labId: lab._id,
+             amount: booking.cashbackEarned,
+             type: "credit",
+             description: "First Booking Reward Transferred from Patient",
+             relatedBookingId: booking._id
+          });
+
+          // Set to 0 so it doesn't transfer again if they re-upload
+          booking.cashbackEarned = 0;
+        }
+      }
+
       await booking.save();
 
       // Notify Patient
@@ -648,7 +720,15 @@ export const downloadReport = async (req, res) => {
     }
 
     if (reportFile.startsWith("http")) {
-      return res.redirect(reportFile);
+      const secureUrl = reportFile.replace(/^http:/, 'https:');
+      const axios = (await import('axios')).default;
+      const response = await axios({
+        method: 'get',
+        url: secureUrl,
+        responseType: 'stream'
+      });
+      res.setHeader('Content-Type', response.headers['content-type'] || 'application/pdf');
+      return response.data.pipe(res);
     }
 
     const filePath = path.join(process.cwd(), reportFile);

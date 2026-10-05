@@ -91,8 +91,8 @@ router.post('/unsubscribe-from-topic', anyAuth, async (req, res) => {
 // Test notification
 router.post('/test-notification', anyAuth, async (req, res) => {
   try {
-    const { title = 'Test Notification', body = 'This is a test notification' } = req.body;
-    const result = await sendNotificationToUser(req.user.id, title, body, { type: 'test' }, req.user.role);
+    const { title = 'Test Notification', body = 'This is a test notification', type = 'test', ...extraData } = req.body;
+    const result = await sendNotificationToUser(req.user.id, title, body, { type, ...extraData }, req.user.role);
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
