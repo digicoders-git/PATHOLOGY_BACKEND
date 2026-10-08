@@ -1,6 +1,6 @@
 import https from 'https';
 
-https.get('https://pathology-backend-live.onrender.com/registrations/get?limit=1000', (resp) => {
+https.get('https://api.laboindia.com/registrations/get?limit=1000', (resp) => {
   let data = '';
 
   resp.on('data', (chunk) => {
