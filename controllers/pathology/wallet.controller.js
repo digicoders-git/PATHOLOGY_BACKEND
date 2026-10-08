@@ -22,9 +22,13 @@ export const getMyWalletTransactions = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    const Registration = (await import("../../model/registration.model.js")).default;
+    const lab = await Registration.findById(labId).select("walletBalance");
+
     res.status(200).json({
       success: true,
       message: "Wallet transactions fetched successfully",
+      walletBalance: lab ? (Number(lab.walletBalance) || 0) : 0,
       pagination: {
         total,
         page,

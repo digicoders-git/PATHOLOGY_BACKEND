@@ -12,6 +12,8 @@ import {
   getNearbyLabs,
   getLabsByTest,
   getTestsByLab,
+  creditLabWallet,
+  getLabWalletTransactionsForAdmin,
 } from "../controllers/registration.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import upload from "../middleware/multer.js";
@@ -35,8 +37,12 @@ router.get("/nearby", getNearbyLabs);
 router.get("/test/:testId", getLabsByTest);
 router.get("/lab/:id/tests", getTestsByLab);
 router.get("/get/:id", getRegistrationById);
+
+// Admin routes
 router.post("/import-excel", verifyAdminToken, upload.single("excelFile"), importRegistrationsExcel);
 router.post("/bulk-create", verifyAdminToken, bulkCreateRegistrations);
+router.post("/wallet/credit", verifyAdminToken, creditLabWallet);
+router.get("/:id/wallet-transactions", verifyAdminToken, getLabWalletTransactionsForAdmin);
 router.put("/:id", verifyAdminToken, cpUpload, updateRegistration);
 router.patch("/status/:id", verifyAdminToken, updateRegistrationStatus);
 router.patch("/featured/:id", verifyAdminToken, toggleFeatured);

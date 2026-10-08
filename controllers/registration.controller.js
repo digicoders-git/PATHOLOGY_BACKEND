@@ -133,9 +133,32 @@ export const createRegistration = async (req, res) => {
       formData.password = await bcrypt.hash(formData.password, 10);
     }
 
-    // console.log("Saving Registration with data:", JSON.stringify(formData, null, 2));
+    // Ensure initial walletBalance has 100 welcome bonus points
+    formData.walletBalance = (Number(formData.walletBalance) || 0) + 100;
 
     const registration = await Registration.create(formData);
+
+    // Create 100 Points Welcome Bonus Transaction Record & Notification
+    try {
+      const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+      await WalletTransaction.create({
+        labId: registration._id,
+        amount: 100,
+        type: "credit",
+        description: "Welcome Bonus - 100 Points for Registration",
+        status: "success",
+      });
+
+      const LabNotification = (await import("../model/labNotification.model.js")).default;
+      await LabNotification.create({
+        labId: registration._id,
+        title: "Welcome Bonus Added! 🎉",
+        message: "Congratulations! 100 points have been credited to your lab wallet as a registration bonus.",
+        type: "WALLET",
+      });
+    } catch (wErr) {
+      console.error("WELCOME_BONUS_WALLET_ERR:", wErr);
+    }
 
     // Auto notification — fire and forget
     createNotification(
@@ -918,6 +941,122 @@ export const getTestsByLab = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to fetch tests for this lab: " + error.message,
+    });
+  }
+};
+
+/**
+ * Credit Offer / Coupon / Custom points to Lab Wallet (Admin)
+ * POST /registrations/wallet/credit
+ */
+export const creditLabWallet = async (req, res) => {
+  try {
+    const { labId, amount, type, description } = req.body;
+
+    if (!labId || !amount || Number(amount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid labId and a positive point/amount value are required",
+      });
+    }
+
+    const numAmount = Number(amount);
+    const lab = await Registration.findById(labId);
+    if (!lab) {
+      return res.status(404).json({ success: false, message: "Lab not found" });
+    }
+
+    lab.walletBalance = (lab.walletBalance || 0) + numAmount;
+    await lab.save();
+
+    const creditType = type || "Offer Points";
+    const txDescription = description?.trim()
+      ? description.trim()
+      : `${creditType} Credited by Admin`;
+
+    const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+    const transaction = await WalletTransaction.create({
+      labId: lab._id,
+      amount: numAmount,
+      type: "credit",
+      description: txDescription,
+      status: "success",
+    });
+
+    // Create In-App Notification for the Lab
+    try {
+      const LabNotification = (await import("../model/labNotification.model.js")).default;
+      await LabNotification.create({
+        labId: lab._id,
+        title: "Wallet Points Credited! 🎁",
+        message: `₹${numAmount} (${creditType}) have been credited to your wallet by Admin. ${txDescription}`,
+        type: "WALLET",
+      });
+    } catch (notifErr) {
+      console.error("LAB_NOTIFICATION_ERROR:", notifErr);
+    }
+
+    // Push Notification via FCM
+    try {
+      if (lab.fcmTokens && lab.fcmTokens.length > 0) {
+        const { sendNotificationToUser } = await import("../services/notificationService.js");
+        await sendNotificationToUser(lab.fcmTokens, {
+          title: "Wallet Points Credited! 🎁",
+          body: `₹${numAmount} (${creditType}) has been credited to your wallet by Admin.`,
+          data: { type: "wallet_credit", amount: String(numAmount) },
+        });
+      }
+    } catch (fcmErr) {
+      console.error("FCM_PUSH_ERROR:", fcmErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully credited ${numAmount} points to ${lab.labName}'s wallet!`,
+      data: {
+        newBalance: lab.walletBalance,
+        transaction,
+      },
+    });
+  } catch (error) {
+    console.error("CREDIT_LAB_WALLET_ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to credit wallet points: " + error.message,
+    });
+  }
+};
+
+/**
+ * Get Wallet Transactions for a Lab (Admin)
+ * GET /registrations/:id/wallet-transactions
+ */
+export const getLabWalletTransactionsForAdmin = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+    const transactions = await WalletTransaction.find({ labId: id })
+      .populate({
+        path: "relatedBookingId",
+        select: "bookingId totalAmount testAmount discount amountPaid",
+      })
+      .sort({ createdAt: -1 });
+
+    const lab = await Registration.findById(id).select("walletBalance labName");
+
+    res.status(200).json({
+      success: true,
+      data: {
+        walletBalance: lab?.walletBalance || 0,
+        labName: lab?.labName || "",
+        transactions,
+      },
+    });
+  } catch (error) {
+    console.error("GET_LAB_WALLET_TXS_ADMIN_ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch wallet transactions: " + error.message,
     });
   }
 };
