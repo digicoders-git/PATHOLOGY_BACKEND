@@ -14,6 +14,7 @@ import {
   getTestsByLab,
   creditLabWallet,
   getLabWalletTransactionsForAdmin,
+  updateApprovalStatus,
 } from "../controllers/registration.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import upload from "../middleware/multer.js";
@@ -45,6 +46,7 @@ router.post("/wallet/credit", verifyAdminToken, creditLabWallet);
 router.get("/:id/wallet-transactions", verifyAdminToken, getLabWalletTransactionsForAdmin);
 router.put("/:id", verifyAdminToken, cpUpload, updateRegistration);
 router.patch("/status/:id", verifyAdminToken, updateRegistrationStatus);
+router.patch("/approval/:id", verifyAdminToken, updateApprovalStatus);
 router.patch("/featured/:id", verifyAdminToken, toggleFeatured);
 router.delete("/:id", verifyAdminToken, deleteRegistration);
 

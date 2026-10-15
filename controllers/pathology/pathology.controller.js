@@ -53,6 +53,23 @@ export const loginPathology = async (req, res) => {
       });
     }
 
+    // Check if account is pending approval or inactive
+    if (pathology.approvalStatus === "pending") {
+      return res.status(403).json({
+        success: false,
+        isPendingApproval: true,
+        message: "Your registration request is pending admin approval. You can login once admin approves your account.",
+      });
+    }
+
+    if (pathology.approvalStatus === "rejected") {
+      return res.status(403).json({
+        success: false,
+        isRejected: true,
+        message: "Your registration request was rejected by admin. Please contact support.",
+      });
+    }
+
     // Check if account is active
     if (!pathology.status) {
       return res.status(403).json({
@@ -152,6 +169,9 @@ export const updatePathologyProfile = async (req, res) => {
       if (req.files.labBanner) {
         formData.labBanner = getLocalUrl(req, req.files.labBanner[0]);
       }
+      if (req.files.pathologyDocs) {
+        formData.pathologyDocs = getLocalUrl(req, req.files.pathologyDocs[0]);
+      }
     }
 
     // Parse JSON fields
@@ -164,6 +184,41 @@ export const updatePathologyProfile = async (req, res) => {
       }
     } catch (e) {
       console.error("Parse error in pathology update:", e);
+    }
+
+    // Handle selectedTests array: extract IDs and upsert LabTestPricing
+    if (Array.isArray(formData.selectedTests)) {
+      const testIds = [];
+      const pricingUpdates = [];
+      for (const item of formData.selectedTests) {
+        if (typeof item === 'object' && item !== null && item._id) {
+          testIds.push(item._id);
+          pricingUpdates.push({
+            registration: id,
+            test: item._id,
+            price: item.lab_price ?? item.price ?? 0,
+            discountPrice: item.lab_discount_price ?? item.discountPrice ?? (item.lab_price ?? 0),
+            addedBy: id,
+          });
+        } else {
+          testIds.push(item);
+        }
+      }
+      formData.selectedTests = testIds;
+
+      if (pricingUpdates.length > 0) {
+        try {
+          for (const pu of pricingUpdates) {
+            await LabTestPricing.findOneAndUpdate(
+              { registration: id, test: pu.test },
+              { $set: pu, $setOnInsert: { isDeleted: false } },
+              { upsert: true, new: true }
+            );
+          }
+        } catch (priceErr) {
+          console.error("Pricing update error in profile update:", priceErr);
+        }
+      }
     }
 
     // Hash password if updating

@@ -128,6 +128,12 @@ export const createRegistration = async (req, res) => {
       };
     }
 
+    // Set pending approval status if registration is from mobile app
+    if (formData.source === "app") {
+      formData.status = false;
+      formData.approvalStatus = "pending";
+    }
+
     // Hash password if provided
     if (formData.password) {
       formData.password = await bcrypt.hash(formData.password, 10);
@@ -161,9 +167,10 @@ export const createRegistration = async (req, res) => {
     }
 
     // Auto notification — fire and forget
+    const isApp = formData.source === "app";
     createNotification(
-      "New Lab Registration",
-      `${formData.labName || "A new lab"} has submitted a registration request.`,
+      isApp ? "New Lab Partner Registration (App)" : "New Lab Registration",
+      `${formData.labName || "A new lab"} has submitted a registration request${isApp ? " from the Lab Mobile App (Pending Approval)" : ""}.`,
       "registration",
       "/dashboard/registrations",
       registration._id
@@ -210,7 +217,7 @@ export const createRegistration = async (req, res) => {
 
 export const getAllRegistrations = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", status, type, regType, source, parentId, featured } = req.query;
+    const { page = 1, limit = 10, search = "", status, type, regType, source, parentId, featured, approvalStatus } = req.query;
 
     const query = { $and: [] };
 
@@ -227,6 +234,10 @@ export const getAllRegistrations = async (req, res) => {
 
     if (status !== undefined && status !== "") {
       query.$and.push({ status: status === "true" || status === true });
+    }
+
+    if (approvalStatus) {
+      query.$and.push({ approvalStatus });
     }
 
     if (featured !== undefined && featured !== "") {
@@ -306,7 +317,7 @@ export const getAllRegistrations = async (req, res) => {
     }
     if (tabStatsQuery.$and.length === 0) delete tabStatsQuery.$and;
 
-    const [total, registrationsDocs, typeStats, statusStats, sourceStats, individualTotal, parentTotal, parentStatsByReg] = await Promise.all([
+    const [total, registrationsDocs, typeStats, statusStats, sourceStats, approvalStats, individualTotal, parentTotal, parentStatsByReg] = await Promise.all([
       Registration.countDocuments(query),
       Registration.find(query)
         .populate("selectedTests")
@@ -325,6 +336,10 @@ export const getAllRegistrations = async (req, res) => {
       Registration.aggregate([
         { $match: tabStatsQuery },
         { $group: { _id: "$source", count: { $sum: 1 } } }
+      ]),
+      Registration.aggregate([
+        { $match: tabStatsQuery },
+        { $group: { _id: "$approvalStatus", count: { $sum: 1 } } }
       ]),
       Registration.countDocuments({
         ...baseStatsQuery,
@@ -375,7 +390,13 @@ export const getAllRegistrations = async (req, res) => {
         ],
         sources: [
           { label: "Website", value: "website", count: sourceStats.find(s => s._id === "website")?.count || 0 },
-          { label: "Admin", value: "admin", count: sourceStats.find(s => s._id === "admin")?.count || 0 }
+          { label: "Admin", value: "admin", count: sourceStats.find(s => s._id === "admin")?.count || 0 },
+          { label: "App", value: "app", count: sourceStats.find(s => s._id === "app")?.count || 0 }
+        ],
+        approvalStatus: [
+          { label: "Pending", value: "pending", count: approvalStats.find(s => s._id === "pending")?.count || 0 },
+          { label: "Approved", value: "approved", count: approvalStats.find(s => s._id === "approved")?.count || 0 },
+          { label: "Rejected", value: "rejected", count: approvalStats.find(s => s._id === "rejected")?.count || 0 }
         ],
         parents: parentStatsByReg.map(p => ({ label: p.name, value: p._id, count: p.count })),
         totalCount: total,
@@ -450,9 +471,14 @@ export const toggleFeatured = async (req, res) => {
 export const updateRegistrationStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const isTrue = status === true || status === "true";
+    const updateData = { status: isTrue };
+    if (isTrue) {
+      updateData.approvalStatus = "approved";
+    }
     const registration = await Registration.findByIdAndUpdate(
       req.params.id,
-      { status },
+      updateData,
       { new: true }
     );
     if (!registration) {
@@ -460,7 +486,7 @@ export const updateRegistrationStatus = async (req, res) => {
     }
     res.status(200).json({
       success: true,
-      message: `Status updated to ${status ? "Active" : "Inactive"}`,
+      message: `Status updated to ${isTrue ? "Active" : "Inactive"}${isTrue ? " and Approved" : ""}`,
       data: registration,
     });
   } catch (error) {
@@ -468,6 +494,70 @@ export const updateRegistrationStatus = async (req, res) => {
       success: false,
       message: "Failed to update status",
       error: error.message,
+    });
+  }
+};
+
+export const updateApprovalStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { approvalStatus, reason } = req.body;
+
+    if (!["pending", "approved", "rejected"].includes(approvalStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid approval status. Must be pending, approved, or rejected.",
+      });
+    }
+
+    const updateData = { approvalStatus };
+    if (approvalStatus === "approved") {
+      updateData.status = true;
+    } else if (approvalStatus === "rejected") {
+      updateData.status = false;
+    }
+
+    const registration = await Registration.findByIdAndUpdate(id, updateData, { new: true });
+    if (!registration) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    // Send notifications to the lab
+    try {
+      const LabNotification = (await import("../model/labNotification.model.js")).default;
+      await LabNotification.create({
+        labId: registration._id,
+        title: approvalStatus === "approved" ? "Account Approved! 🎉" : "Registration Status Update",
+        message: approvalStatus === "approved"
+          ? "Congratulations! Your lab registration has been approved by Admin. You can now login and complete your lab profile."
+          : `Your registration request was rejected by Admin.${reason ? " Reason: " + reason : ""}`,
+        type: "SYSTEM",
+      });
+
+      if (registration.fcmTokens && registration.fcmTokens.length > 0) {
+        const { sendNotificationToUser } = await import("../services/notificationService.js");
+        await sendNotificationToUser(registration.fcmTokens, {
+          title: approvalStatus === "approved" ? "Account Approved! 🎉" : "Registration Status Update",
+          body: approvalStatus === "approved"
+            ? "Your lab account has been approved by Admin. You can now login."
+            : `Your registration request was rejected.${reason ? " Reason: " + reason : ""}`,
+          data: { type: "account_approval", approvalStatus },
+        });
+      }
+    } catch (notifErr) {
+      console.error("APPROVAL_NOTIFICATION_ERR:", notifErr);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Lab registration marked as ${approvalStatus}`,
+      data: registration,
+    });
+  } catch (error) {
+    console.error("UPDATE_APPROVAL_STATUS_ERR:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update approval status: " + error.message,
     });
   }
 };

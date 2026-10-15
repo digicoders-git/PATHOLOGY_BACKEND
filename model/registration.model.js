@@ -162,8 +162,13 @@ const registrationSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ["website", "admin"],
+      enum: ["website", "admin", "app"],
       default: "website",
+    },
+    approvalStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved",
     },
     role: {
       type: String,

@@ -10,10 +10,12 @@ import upload from "../../middleware/multer.js";
 
 const router = express.Router();
 
-// Define multple file fields
+// Define multiple file fields
 const cpUpload = upload.fields([
   { name: "labLogo", maxCount: 1 },
   { name: "labBanner", maxCount: 1 },
+  { name: "pathologyDocs", maxCount: 1 },
+  { name: "certificationFiles", maxCount: 10 },
 ]);
 
 router.post("/login", loginPathology);
