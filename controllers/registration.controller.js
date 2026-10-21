@@ -46,6 +46,9 @@ export const createRegistration = async (req, res) => {
       if (req.files.pathologyDocs) {
         formData.pathologyDocs = getLocalUrl(req, req.files.pathologyDocs[0]);
       }
+      if (req.files.cmoCertificate) {
+        formData.cmoCertificate = getLocalUrl(req, req.files.cmoCertificate[0]);
+      }
     }
 
     // Parse nested arrays and objects
@@ -632,6 +635,9 @@ export const updateRegistration = async (req, res) => {
       }
       if (req.files.pathologyDocs) {
         formData.pathologyDocs = getLocalUrl(req, req.files.pathologyDocs[0]);
+      }
+      if (req.files.cmoCertificate) {
+        formData.cmoCertificate = getLocalUrl(req, req.files.cmoCertificate[0]);
       }
     }
 

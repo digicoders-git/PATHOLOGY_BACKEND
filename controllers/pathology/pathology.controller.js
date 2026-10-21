@@ -15,12 +15,19 @@ const getLocalUrl = (req, file) => {
 
 export const loginPathology = async (req, res) => {
   try {
-    const { phone, password } = req.body;
+    const { phone, password, otp } = req.body;
 
-    if (!phone || !password) {
+    if (!phone) {
       return res.status(400).json({
         success: false,
-        message: "Phone and password are required",
+        message: "Phone number is required",
+      });
+    }
+
+    if (!password && !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Password or OTP is required",
       });
     }
 
@@ -33,24 +40,34 @@ export const loginPathology = async (req, res) => {
       });
     }
 
-    // Secure password check
-    let isMatch = false;
-
-    // Check if it's a bcrypt hash
-    const isHash = pathology.password && pathology.password.startsWith('$2');
-
-    if (isHash) {
-      isMatch = await bcrypt.compare(password, pathology.password);
+    if (otp !== undefined && otp !== null && otp !== "") {
+      // Fixed OTP check (1234)
+      if (otp !== "1234") {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid OTP. Please enter 1234",
+        });
+      }
     } else {
-      // Direct comparison for plain text (old data)
-      isMatch = pathology.password === password;
-    }
+      // Secure password check
+      let isMatch = false;
 
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid phone number or password",
-      });
+      // Check if it's a bcrypt hash
+      const isHash = pathology.password && pathology.password.startsWith('$2');
+
+      if (isHash) {
+        isMatch = await bcrypt.compare(password, pathology.password);
+      } else {
+        // Direct comparison for plain text (old data)
+        isMatch = pathology.password === password;
+      }
+
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid phone number or password",
+        });
+      }
     }
 
     // Check if account is pending approval or inactive

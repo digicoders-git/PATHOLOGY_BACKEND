@@ -23,6 +23,10 @@ const planSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  offerBadge: {
+    type: mongoose.Schema.Types.Mixed,
+    default: { local: "", cloudinary: "" }
+  },
   duration: {
     type: Number,
     default: 30,

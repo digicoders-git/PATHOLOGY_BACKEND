@@ -1,16 +1,66 @@
 import Plan from "../model/plan.model.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
+import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 
 const getRazorpay = () => new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
   key_secret: process.env.RAZORPAY_KEY_SECRET || 'SMtig3JkAqFP7nIMpODyyuAL',
 });
 
+// Helper to normalize plan input from JSON or FormData
+const parsePlanData = async (req) => {
+    const b = { ...req.body };
+    const planData = {};
+
+    if (b.name !== undefined) planData.name = b.name.trim();
+    if (b.price !== undefined) planData.price = Number(b.price) || 0;
+    if (b.totalPrice !== undefined) planData.totalPrice = Number(b.totalPrice) || 0;
+    if (b.priceLabel !== undefined) planData.priceLabel = b.priceLabel.trim();
+    if (b.badgeText !== undefined) planData.badgeText = b.badgeText.trim();
+    if (b.duration !== undefined) planData.duration = Number(b.duration) || 30;
+    if (b.displayOrder !== undefined) planData.displayOrder = Number(b.displayOrder) || 0;
+    if (b.status !== undefined) planData.status = b.status === true || b.status === "true";
+    if (b.isPopular !== undefined) planData.isPopular = b.isPopular === true || b.isPopular === "true";
+
+    // Parse features if string
+    if (b.features !== undefined) {
+        if (typeof b.features === "string") {
+            try {
+                planData.features = JSON.parse(b.features);
+            } catch (e) {
+                planData.features = b.features.split(",").map(f => f.trim()).filter(Boolean);
+            }
+        } else if (Array.isArray(b.features)) {
+            planData.features = b.features;
+        }
+    }
+
+    // Process offerBadge file upload
+    if (req.file) {
+        const localPath = req.file.path.replace(/\\/g, "/");
+        let cloudUrl = "";
+        try {
+            cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/plans");
+        } catch (err) {
+            console.error("Cloudinary upload error for plan badge:", err);
+        }
+        planData.offerBadge = {
+            local: localPath,
+            cloudinary: cloudUrl || ""
+        };
+    } else if (b.removeOfferBadge === "true" || b.removeOfferBadge === true) {
+        planData.offerBadge = { local: "", cloudinary: "" };
+    }
+
+    return planData;
+};
+
 // Create a new plan (Admin)
 export const createPlan = async (req, res) => {
     try {
-        const plan = new Plan(req.body);
+        const planData = await parsePlanData(req);
+        const plan = new Plan(planData);
         await plan.save();
         res.status(201).json({ success: true, message: "Subscription Plan created successfully", data: plan });
     } catch (error) {
@@ -33,9 +83,38 @@ export const getPlans = async (req, res) => {
 // Update a plan (Admin)
 export const updatePlan = async (req, res) => {
     try {
-        const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const planData = await parsePlanData(req);
+        const plan = await Plan.findByIdAndUpdate(req.params.id, planData, { new: true });
         if (!plan) return res.status(404).json({ success: false, message: "Plan not found" });
         res.status(200).json({ success: true, message: "Subscription Plan updated successfully", data: plan });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+// Reorder plans display sequence (Admin)
+export const reorderPlans = async (req, res) => {
+    try {
+        const { orderedIds } = req.body;
+        if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+            return res.status(400).json({ success: false, message: "orderedIds array is required" });
+        }
+
+        const bulkOps = orderedIds.map((id, index) => ({
+            updateOne: {
+                filter: { _id: id },
+                update: { $set: { displayOrder: index + 1 } }
+            }
+        }));
+
+        await Plan.bulkWrite(bulkOps);
+
+        const updatedPlans = await Plan.find({}).sort({ displayOrder: 1, createdAt: -1 });
+        res.status(200).json({ 
+            success: true, 
+            message: "Plan sequence updated successfully", 
+            data: updatedPlans 
+        });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

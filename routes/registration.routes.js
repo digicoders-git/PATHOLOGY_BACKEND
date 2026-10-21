@@ -27,6 +27,7 @@ const cpUpload = upload.fields([
   { name: "labBanner", maxCount: 1 },
   { name: "certificationFiles", maxCount: 10 },
   { name: "pathologyDocs", maxCount: 1 },
+  { name: "cmoCertificate", maxCount: 1 },
 ]);
 
 // Public route for website

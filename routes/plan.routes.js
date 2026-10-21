@@ -1,7 +1,9 @@
 import express from "express";
-import { createPlan, getPlans, updatePlan, deletePlan, togglePlanStatus, createPlanPurchaseOrder, verifyPlanPurchase, getLabBookingStats, purchasePlanWithWallet } from "../controllers/plan.controller.js";
+import { createPlan, getPlans, updatePlan, reorderPlans, deletePlan, togglePlanStatus, createPlanPurchaseOrder, verifyPlanPurchase, getLabBookingStats, purchasePlanWithWallet } from "../controllers/plan.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import { pathologyAuth } from "../middleware/pathologyAuth.middleware.js";
+
+import upload from "../middleware/multer.js";
 
 const router = express.Router();
 
@@ -9,8 +11,9 @@ const router = express.Router();
 router.get("/get", getPlans);
 
 // Protected: Only Admin can modify
-router.post("/create", verifyAdminToken, createPlan);
-router.put("/:id", verifyAdminToken, updatePlan);
+router.post("/create", verifyAdminToken, upload.single("offerBadge"), createPlan);
+router.put("/reorder", verifyAdminToken, reorderPlans);
+router.put("/:id", verifyAdminToken, upload.single("offerBadge"), updatePlan);
 router.delete("/:id", verifyAdminToken, deletePlan);
 router.patch("/:id/status", verifyAdminToken, togglePlanStatus);
 

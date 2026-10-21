@@ -151,6 +151,13 @@ const registrationSchema = new mongoose.Schema(
     pathologyDocs: {
       type: String,
     },
+    cmoCertificate: {
+      type: String,
+    },
+    gstin: {
+      type: String,
+      trim: true,
+    },
 
     status: {
       type: Boolean,
