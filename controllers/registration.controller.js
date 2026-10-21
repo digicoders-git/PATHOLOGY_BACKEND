@@ -142,32 +142,21 @@ export const createRegistration = async (req, res) => {
       formData.password = await bcrypt.hash(formData.password, 10);
     }
 
-    // Ensure initial walletBalance has 100 welcome bonus points
-    formData.walletBalance = (Number(formData.walletBalance) || 0) + 100;
+    // Handle FCM tokens from mobile app registration
+    if (formData.fcmToken) {
+      formData.fcmTokens = [formData.fcmToken];
+    } else if (typeof formData.fcmTokens === "string") {
+      try {
+        formData.fcmTokens = JSON.parse(formData.fcmTokens);
+      } catch (e) {
+        formData.fcmTokens = [formData.fcmTokens];
+      }
+    }
+
+    // Ensure initial walletBalance is 0 for unapproved registrations
+    formData.walletBalance = Number(formData.walletBalance) || 0;
 
     const registration = await Registration.create(formData);
-
-    // Create 100 Points Welcome Bonus Transaction Record & Notification
-    try {
-      const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
-      await WalletTransaction.create({
-        labId: registration._id,
-        amount: 100,
-        type: "credit",
-        description: "Welcome Bonus - 100 Points for Registration",
-        status: "success",
-      });
-
-      const LabNotification = (await import("../model/labNotification.model.js")).default;
-      await LabNotification.create({
-        labId: registration._id,
-        title: "Welcome Bonus Added! 🎉",
-        message: "Congratulations! 100 points have been credited to your lab wallet as a registration bonus.",
-        type: "WALLET",
-      });
-    } catch (wErr) {
-      console.error("WELCOME_BONUS_WALLET_ERR:", wErr);
-    }
 
     // Auto notification — fire and forget
     const isApp = formData.source === "app";
@@ -178,6 +167,27 @@ export const createRegistration = async (req, res) => {
       "/dashboard/registrations",
       registration._id
     ).catch(() => {});
+
+    // Send instant welcome push notification to device if FCM token was provided
+    if (formData.fcmToken || (formData.fcmTokens && formData.fcmTokens.length > 0)) {
+      try {
+        const { sendToTokens } = await import("../services/notificationService.js");
+        const tokensToSend = (formData.fcmTokens && formData.fcmTokens.length > 0)
+          ? formData.fcmTokens
+          : [formData.fcmToken];
+        await sendToTokens(
+          tokensToSend,
+          "Registration Submitted! 📋",
+          "Your lab registration has been received. Our admin team will review and verify your details within 48 hours.",
+          {
+            type: "account_approval",
+            approvalStatus: "pending",
+          }
+        );
+      } catch (fcmErr) {
+        console.error("WELCOME_PUSH_ERR:", fcmErr);
+      }
+    }
 
     // Save test pricing separately
     if (formData.test && Array.isArray(formData.test)) {
@@ -329,7 +339,7 @@ export const getAllRegistrations = async (req, res) => {
       Registration.find(query)
         .populate("selectedTests")
         .populate("parent")
-        .sort({ isFeatured: -1, createdAt: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit)),
       Registration.aggregate([
@@ -383,6 +393,14 @@ export const getAllRegistrations = async (req, res) => {
     const registrations = registrationsDocs.map(reg => {
       const obj = reg.toObject();
       obj.testPricing = labTestPricings.filter(p => p.registration.toString() === obj._id.toString());
+      // Clean up any unapproved lab that mistakenly has wallet balance before admin approval
+      if (obj.approvalStatus !== "approved" && obj.walletBalance > 0) {
+        obj.walletBalance = 0;
+        Registration.updateOne({ _id: obj._id }, { $set: { walletBalance: 0 } }).exec();
+        import("../model/walletTransaction.model.js").then(({ default: WT }) => {
+          WT.deleteMany({ labId: obj._id, description: { $regex: /Welcome Bonus/i } }).exec();
+        }).catch(() => {});
+      }
       return obj;
     });
 
@@ -529,43 +547,91 @@ export const updateApprovalStatus = async (req, res) => {
       updateData.adminQuery = reason || "Clarification needed on your registration details.";
     }
 
-    const registration = await Registration.findByIdAndUpdate(id, updateData, { new: true });
+    const registration = await Registration.findById(id);
     if (!registration) {
       return res.status(404).json({ success: false, message: "Registration not found" });
     }
 
+    registration.approvalStatus = approvalStatus;
+    if (approvalStatus === "approved") {
+      registration.status = true;
+      registration.adminQuery = "";
+
+      // Credit 100 Welcome Bonus points upon Admin approval (if not already given)
+      try {
+        const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+        const existingBonus = await WalletTransaction.findOne({
+          labId: registration._id,
+          description: { $regex: /Welcome Bonus/i },
+        });
+
+        if (!existingBonus) {
+          registration.walletBalance = (Number(registration.walletBalance) || 0) + 100;
+
+          await WalletTransaction.create({
+            labId: registration._id,
+            amount: 100,
+            type: "credit",
+            description: "Welcome Bonus - 100 Points on Account Approval",
+            status: "success",
+          });
+
+          const LabNotification = (await import("../model/labNotification.model.js")).default;
+          await LabNotification.create({
+            labId: registration._id,
+            title: "Welcome Bonus Credited! 🎁",
+            body: "Congratulations! 100 points have been credited to your lab wallet upon approval of your registration.",
+            type: "WALLET",
+          });
+        }
+      } catch (wErr) {
+        console.error("APPROVAL_WALLET_BONUS_ERR:", wErr);
+      }
+    } else if (approvalStatus === "rejected") {
+      registration.status = false;
+      if (reason) registration.rejectReason = reason;
+    } else if (approvalStatus === "hold") {
+      registration.status = false;
+      registration.adminQuery = reason || "Clarification needed on your registration details.";
+    }
+
+    await registration.save();
+
     // Send notifications to the lab
     try {
-      const LabNotification = (await import("../model/labNotification.model.js")).default;
       let notifTitle = "Registration Status Update";
       let notifMsg = "";
 
       if (approvalStatus === "approved") {
         notifTitle = "Account Approved! 🎉";
-        notifMsg = "Congratulations! Your lab registration has been approved by Admin. You can now login and complete your lab profile.";
+        notifMsg = "Congratulations! Your lab registration has been approved by Admin and 100 welcome bonus points have been credited to your wallet. You can now login and complete your lab profile.";
       } else if (approvalStatus === "hold") {
         notifTitle = "Action Required: Registration on Hold ⚠️";
-        notifMsg = `Admin query: ${reason || "Please update your details for verification."}`;
+        notifMsg = reason ? `Admin query: ${reason}` : "Please update your details for verification.";
       } else {
         notifTitle = "Registration Rejected";
         notifMsg = `Your registration request was rejected by Admin.${reason ? " Reason: " + reason : ""}`;
       }
 
-      await LabNotification.create({
-        labId: registration._id,
-        title: notifTitle,
-        message: notifMsg,
-        type: "SYSTEM",
-      });
+      const { sendNotificationToUser } = await import("../services/notificationService.js");
+      // Use tokens on registration doc or registration ID
+      const target = (registration.fcmTokens && registration.fcmTokens.length > 0)
+        ? registration.fcmTokens
+        : registration._id;
 
-      if (registration.fcmTokens && registration.fcmTokens.length > 0) {
-        const { sendNotificationToUser } = await import("../services/notificationService.js");
-        await sendNotificationToUser(registration.fcmTokens, {
-          title: notifTitle,
-          body: notifMsg,
-          data: { type: "account_approval", approvalStatus, adminQuery: reason || "" },
-        });
-      }
+      await sendNotificationToUser(
+        target,
+        notifTitle,
+        notifMsg,
+        {
+          type: "account_approval",
+          approvalStatus,
+          adminQuery: reason || "",
+          rejectReason: reason || "",
+          message: notifMsg,
+        },
+        "pathology"
+      );
     } catch (notifErr) {
       console.error("APPROVAL_NOTIFICATION_ERR:", notifErr);
     }
@@ -1175,3 +1241,47 @@ export const getLabWalletTransactionsForAdmin = async (req, res) => {
     });
   }
 };
+
+/**
+ * Save FCM token for a registration by ID or phone (Public)
+ * POST /registrations/fcm-token
+ */
+export const saveRegistrationFcmToken = async (req, res) => {
+  try {
+    const { registrationId, phone, token } = req.body;
+    if (!token) {
+      return res.status(400).json({ success: false, message: "FCM token is required" });
+    }
+    const cleanPhone = phone ? String(phone).replace(/\D/g, "") : null;
+    let query = null;
+    if (registrationId) {
+      query = { _id: registrationId };
+    } else if (cleanPhone) {
+      query = { $or: [{ phone: cleanPhone }, { phone: String(phone) }] };
+    }
+
+    if (!query) {
+      return res.status(400).json({ success: false, message: "registrationId or phone is required" });
+    }
+
+    const registration = await Registration.findOneAndUpdate(
+      query,
+      { $addToSet: { fcmTokens: token } },
+      { new: true }
+    );
+
+    if (!registration) {
+      return res.status(404).json({ success: false, message: "Registration not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "FCM token saved successfully",
+      data: { labId: registration._id, fcmCount: registration.fcmTokens?.length || 0 }
+    });
+  } catch (error) {
+    console.error("SAVE_REG_FCM_TOKEN_ERROR:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

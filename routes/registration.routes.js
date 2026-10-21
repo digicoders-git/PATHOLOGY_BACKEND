@@ -15,6 +15,7 @@ import {
   creditLabWallet,
   getLabWalletTransactionsForAdmin,
   updateApprovalStatus,
+  saveRegistrationFcmToken,
 } from "../controllers/registration.controller.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
 import upload from "../middleware/multer.js";
@@ -30,8 +31,9 @@ const cpUpload = upload.fields([
   { name: "cmoCertificate", maxCount: 1 },
 ]);
 
-// Public route for website
+// Public routes
 router.post("/create", cpUpload, createRegistration);
+router.post("/fcm-token", saveRegistrationFcmToken);
 
 // GET routes (Public)
 router.get("/get", getAllRegistrations);

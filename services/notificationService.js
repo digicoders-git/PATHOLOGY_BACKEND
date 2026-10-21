@@ -54,24 +54,48 @@ export const getUserFCMTokens = async (userId, role = 'pathology') => {
   }
 };
 
-// Send notification to specific user by userId
-export const sendNotificationToUser = async (userId, title, body, data = {}, role = 'pathology') => {
+// Send notification to specific user by userId or tokens
+export const sendNotificationToUser = async (userOrTokens, title, body, data = {}, role = 'pathology') => {
   try {
-    if (role === 'pathology') {
-      import('../model/labNotification.model.js').then(({ default: LabNotification }) => {
-        LabNotification.create({
+    let tokens = [];
+    let userId = null;
+
+    // Support object parameters if passed as 2nd arg: (user, { title, body, data })
+    if (typeof title === 'object' && title !== null && !body) {
+      const opts = title;
+      body = opts.body || opts.message || '';
+      data = opts.data || {};
+      role = opts.role || role;
+      title = opts.title || '';
+    }
+
+    if (Array.isArray(userOrTokens)) {
+      tokens = userOrTokens;
+    } else if (typeof userOrTokens === 'string' && userOrTokens.length > 30 && !userOrTokens.match(/^[0-9a-fA-F]{24}$/)) {
+      tokens = [userOrTokens];
+    } else {
+      userId = userOrTokens;
+      const res = await getUserFCMTokens(userId, role);
+      tokens = res.tokens || [];
+    }
+
+    if (userId && role === 'pathology') {
+      try {
+        const LabNotification = (await import('../model/labNotification.model.js')).default;
+        await LabNotification.create({
           labId: userId,
           title,
           body,
           type: data.type || 'SYSTEM',
           refId: data.queryId || data.bookingId || data.offerId || null
-        }).catch(err => console.log('Failed to save LabNotification:', err.message));
-      });
+        });
+      } catch (err) {
+        console.log('Failed to save LabNotification:', err.message);
+      }
     }
 
-    const { tokens } = await getUserFCMTokens(userId, role);
     if (!tokens || tokens.length === 0) {
-      console.log(`No FCM tokens for user ${userId}`);
+      console.log(`No FCM tokens found for target:`, userOrTokens);
       return { success: false, message: 'No FCM tokens found' };
     }
     return await sendToTokens(tokens, title, body, data);
@@ -114,33 +138,52 @@ export const sendNotificationToAllPatients = async (title, body, data = {}) => {
 };
 
 // Send to list of tokens
-const sendToTokens = async (tokens, title, body, data = {}) => {
+export const sendToTokens = async (tokens, title, body, data = {}) => {
+  if (!tokens || tokens.length === 0) return { success: false, message: 'No tokens provided' };
+
+  // Filter valid unique token strings
+  const validTokens = [...new Set(tokens.filter(t => typeof t === 'string' && t.trim().length > 0))];
+  if (validTokens.length === 0) return { success: false, message: 'No valid tokens' };
+
   const message = {
     notification: { title, body },
-    data: stringifyData(data),
+    data: stringifyData({
+      ...data,
+      title,
+      body,
+    }),
     android: {
       priority: 'high',
       notification: {
         sound: 'default',
-        channelId: 'high_importance_channel'
+        channelId: 'pathology_lab_notifications',
+        priority: 'high',
+        defaultSound: true,
+        defaultVibrateTimings: true,
       }
     },
     apns: {
+      headers: {
+        'apns-priority': '10',
+      },
       payload: {
         aps: {
-          sound: 'default'
+          sound: 'default',
+          alert: { title, body },
+          contentAvailable: true,
         }
       }
     }
   };
 
   const results = [];
-  for (const token of tokens) {
+  for (const token of validTokens) {
     try {
       const response = await messaging.send({ ...message, token });
+      console.log(`[FCM SUCCESS] Sent to ${token.substring(0, 15)}... MsgId: ${response}`);
       results.push({ token, success: true, messageId: response });
     } catch (error) {
-      console.error(`Error sending to token ${token}:`, error.message);
+      console.error(`[FCM ERROR] Failed for token ${token.substring(0, 15)}...:`, error.message);
       results.push({ token, success: false, error: error.message });
     }
   }
