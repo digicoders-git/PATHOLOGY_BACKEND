@@ -5,6 +5,7 @@ import LabSlot from "../../model/labSlot.model.js";
 import mongoose from "mongoose";
 import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 import { sendNotificationToUser } from "../../services/notificationService.js";
+import { rewardLabForFirstCompletedBooking } from "../../services/bookingRewardService.js";
 
 /**
  * Get all bookings for the logged-in Pathology Lab (Merged from both systems)
@@ -230,21 +231,30 @@ export const updateBookingStatus = async (req, res) => {
       booking.status = status;
 
       // Wallet Logic: If marked as Completed for the first time, credit the lab's wallet
-      if (status === "Completed" && oldStatus !== "Completed" && booking.adminDiscountAmount > 0) {
-         const lab = await Registration.findById(labId);
-         if (lab) {
-            lab.walletBalance = (lab.walletBalance || 0) + booking.adminDiscountAmount;
-            await lab.save();
+      if (status === "Completed" && oldStatus !== "Completed") {
+         if (booking.adminDiscountAmount > 0) {
+           const lab = await Registration.findById(labId);
+           if (lab) {
+              lab.walletBalance = (lab.walletBalance || 0) + booking.adminDiscountAmount;
+              await lab.save();
 
-            const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
-            await WalletTransaction.create({
-               labId: labId,
-               amount: booking.adminDiscountAmount,
-               type: "credit",
-               description: `Admin Coupon Refund for Booking`,
-               relatedBookingId: bookingId
-            });
+              const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+              await WalletTransaction.create({
+                 labId: labId,
+                 amount: booking.adminDiscountAmount,
+                 type: "credit",
+                 description: `Admin Coupon Refund for Booking`,
+                 relatedBookingId: bookingId
+              });
+           }
          }
+
+         // Lab Reward: 100 Points to Lab on Patient's First Completed Booking
+         rewardLabForFirstCompletedBooking({
+           bookingId: booking._id,
+           labId: labId,
+           patientId: booking.patient
+         }).catch(err => console.error("Error rewarding lab on direct booking completion:", err));
       }
 
       await booking.save();
@@ -267,21 +277,30 @@ export const updateBookingStatus = async (req, res) => {
       }
 
       // Wallet Logic: If marked as Completed for the first time, credit the lab's wallet
-      if (status === "Completed" && oldStatus !== "Completed" && appBooking.adminDiscountAmount > 0) {
-         const lab = await Registration.findById(labId);
-         if (lab) {
-            lab.walletBalance = (lab.walletBalance || 0) + appBooking.adminDiscountAmount;
-            await lab.save();
+      if (status === "Completed" && oldStatus !== "Completed") {
+         if (appBooking.adminDiscountAmount > 0) {
+           const lab = await Registration.findById(labId);
+           if (lab) {
+              lab.walletBalance = (lab.walletBalance || 0) + appBooking.adminDiscountAmount;
+              await lab.save();
 
-            const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
-            await WalletTransaction.create({
-               labId: labId,
-               amount: appBooking.adminDiscountAmount,
-               type: "credit",
-               description: `Admin Coupon Refund for Booking`,
-               relatedBookingId: bookingId
-            });
+              const WalletTransaction = (await import("../../model/walletTransaction.model.js")).default;
+              await WalletTransaction.create({
+                 labId: labId,
+                 amount: appBooking.adminDiscountAmount,
+                 type: "credit",
+                 description: `Admin Coupon Refund for Booking`,
+                 relatedBookingId: bookingId
+              });
+           }
          }
+
+         // Lab Reward: 100 Points to Lab on Patient's First Completed Booking
+         rewardLabForFirstCompletedBooking({
+           bookingId: appBooking._id,
+           labId: labId,
+           patientId: appBooking.patientId
+         }).catch(err => console.error("Error rewarding lab on app booking completion:", err));
       }
 
       await appBooking.save();
@@ -457,6 +476,12 @@ export const uploadTestReport = async (req, res) => {
         }
       }
 
+      rewardLabForFirstCompletedBooking({
+        bookingId: booking._id,
+        labId: labId,
+        patientId: booking.patient
+      }).catch(err => console.error("Error rewarding lab on direct report upload:", err));
+
       await booking.save();
       return res.json({
         success: true,
@@ -494,6 +519,12 @@ export const uploadTestReport = async (req, res) => {
             });
          }
       }
+
+      rewardLabForFirstCompletedBooking({
+        bookingId: appBooking._id,
+        labId: labId,
+        patientId: appBooking.patientId
+      }).catch(err => console.error("Error rewarding lab on app report upload:", err));
 
       await appBooking.save();
       return res.json({

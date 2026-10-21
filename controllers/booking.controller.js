@@ -7,6 +7,7 @@ import { sendNotificationToUser, sendNotificationToAdmins } from "../services/no
 import path from "path";
 import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 import fs from "fs";
+import { rewardLabForFirstCompletedBooking } from "../services/bookingRewardService.js";
 
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
@@ -470,34 +471,58 @@ export const updateBookingStatus = async (req, res) => {
     if (scheduledDate !== undefined) updateData.scheduledDate = scheduledDate;
     if (notes !== undefined) updateData.notes = notes;
 
-    const booking = await Booking.findById(req.params.id);
+    let isAppBooking = false;
+    let booking = await Booking.findById(req.params.id);
+    if (!booking) {
+      booking = await TestBooking.findById(req.params.id);
+      isAppBooking = true;
+    }
     if (!booking) {
       return res.status(404).json({ success: false, message: "Booking not found" });
     }
 
-    const oldStatus = booking.status;
+    const oldStatus = isAppBooking ? booking.bookingStatus : booking.status;
 
-    if (status !== undefined) booking.status = status;
-    if (paymentStatus !== undefined) booking.paymentStatus = paymentStatus;
-    if (scheduledDate !== undefined) booking.scheduledDate = scheduledDate;
-    if (notes !== undefined) booking.notes = notes;
+    if (isAppBooking) {
+      if (status !== undefined) booking.bookingStatus = status;
+      if (paymentStatus !== undefined) booking.paymentStatus = paymentStatus;
+    } else {
+      if (status !== undefined) booking.status = status;
+      if (paymentStatus !== undefined) booking.paymentStatus = paymentStatus;
+      if (scheduledDate !== undefined) booking.scheduledDate = scheduledDate;
+      if (notes !== undefined) booking.notes = notes;
+    }
 
     // Wallet Logic: If marked as Completed for the first time, credit the lab's wallet
-    if (status === "Completed" && oldStatus !== "Completed" && booking.adminDiscountAmount > 0) {
-      const Registration = (await import("../model/registration.model.js")).default;
-      const lab = await Registration.findById(booking.registration);
-      if (lab) {
-         lab.walletBalance = (lab.walletBalance || 0) + booking.adminDiscountAmount;
-         await lab.save();
+    const labId = isAppBooking ? booking.labId : booking.registration;
+    const patientId = isAppBooking ? booking.patientId : booking.patient;
 
-         const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
-         await WalletTransaction.create({
-            labId: booking.registration,
-            amount: booking.adminDiscountAmount,
-            type: "credit",
-            description: `Admin Coupon Refund for Booking`,
-            relatedBookingId: booking._id
-         });
+    if (status === "Completed" && oldStatus !== "Completed") {
+      if (booking.adminDiscountAmount > 0 && labId) {
+        const Registration = (await import("../model/registration.model.js")).default;
+        const lab = await Registration.findById(labId);
+        if (lab) {
+           lab.walletBalance = (lab.walletBalance || 0) + booking.adminDiscountAmount;
+           await lab.save();
+
+           const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+           await WalletTransaction.create({
+              labId: labId,
+              amount: booking.adminDiscountAmount,
+              type: "credit",
+              description: `Admin Coupon Refund for Booking`,
+              relatedBookingId: booking._id
+           });
+        }
+      }
+
+      // Lab Reward: 100 Points to Lab on Patient's First Completed Booking
+      if (labId && patientId) {
+        rewardLabForFirstCompletedBooking({
+          bookingId: booking._id,
+          labId: labId,
+          patientId: patientId
+        }).catch(err => console.error("Error rewarding lab on admin booking completion:", err));
       }
     }
 
@@ -606,6 +631,12 @@ export const uploadReport = async (req, res) => {
         }
       }
 
+      rewardLabForFirstCompletedBooking({
+        bookingId: booking._id,
+        labId: booking.registration,
+        patientId: booking.patient
+      }).catch(err => console.error("Error rewarding lab on admin direct report upload:", err));
+
       await booking.save();
 
       // Notify Patient
@@ -645,6 +676,13 @@ export const uploadReport = async (req, res) => {
       testBooking.reportFile = finalReportUrl;
       testBooking.reportStatus = "Uploaded";
       testBooking.bookingStatus = "Completed";
+
+      rewardLabForFirstCompletedBooking({
+        bookingId: testBooking._id,
+        labId: testBooking.labId,
+        patientId: testBooking.patientId
+      }).catch(err => console.error("Error rewarding lab on admin test booking report upload:", err));
+
       await testBooking.save();
 
       // Notify Patient
