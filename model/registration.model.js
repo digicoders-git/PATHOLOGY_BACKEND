@@ -163,6 +163,10 @@ const registrationSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isProfileComplete: {
+      type: Boolean,
+      default: false,
+    },
     isFeatured: {
       type: Boolean,
       default: false,
@@ -174,8 +178,16 @@ const registrationSchema = new mongoose.Schema(
     },
     approvalStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "approved",
+      enum: ["pending", "approved", "rejected", "hold"],
+      default: "pending",
+    },
+    adminQuery: {
+      type: String,
+      default: "",
+    },
+    rejectReason: {
+      type: String,
+      default: "",
     },
     role: {
       type: String,

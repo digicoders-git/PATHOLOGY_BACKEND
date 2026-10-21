@@ -220,7 +220,7 @@ export const createRegistration = async (req, res) => {
 
 export const getAllRegistrations = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = "", status, type, regType, source, parentId, featured, approvalStatus } = req.query;
+    const { page = 1, limit = 10, search = "", status, type, regType, source, parentId, featured, approvalStatus, isProfileComplete } = req.query;
 
     const query = { $and: [] };
 
@@ -241,6 +241,10 @@ export const getAllRegistrations = async (req, res) => {
 
     if (approvalStatus) {
       query.$and.push({ approvalStatus });
+    }
+
+    if (isProfileComplete !== undefined && isProfileComplete !== "") {
+      query.$and.push({ isProfileComplete: isProfileComplete === "true" || isProfileComplete === true });
     }
 
     if (featured !== undefined && featured !== "") {
@@ -506,18 +510,23 @@ export const updateApprovalStatus = async (req, res) => {
     const { id } = req.params;
     const { approvalStatus, reason } = req.body;
 
-    if (!["pending", "approved", "rejected"].includes(approvalStatus)) {
+    if (!["pending", "approved", "rejected", "hold"].includes(approvalStatus)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid approval status. Must be pending, approved, or rejected.",
+        message: "Invalid approval status. Must be pending, approved, rejected, or hold.",
       });
     }
 
     const updateData = { approvalStatus };
     if (approvalStatus === "approved") {
       updateData.status = true;
+      updateData.adminQuery = "";
     } else if (approvalStatus === "rejected") {
       updateData.status = false;
+      if (reason) updateData.rejectReason = reason;
+    } else if (approvalStatus === "hold") {
+      updateData.status = false;
+      updateData.adminQuery = reason || "Clarification needed on your registration details.";
     }
 
     const registration = await Registration.findByIdAndUpdate(id, updateData, { new: true });
@@ -528,23 +537,33 @@ export const updateApprovalStatus = async (req, res) => {
     // Send notifications to the lab
     try {
       const LabNotification = (await import("../model/labNotification.model.js")).default;
+      let notifTitle = "Registration Status Update";
+      let notifMsg = "";
+
+      if (approvalStatus === "approved") {
+        notifTitle = "Account Approved! 🎉";
+        notifMsg = "Congratulations! Your lab registration has been approved by Admin. You can now login and complete your lab profile.";
+      } else if (approvalStatus === "hold") {
+        notifTitle = "Action Required: Registration on Hold ⚠️";
+        notifMsg = `Admin query: ${reason || "Please update your details for verification."}`;
+      } else {
+        notifTitle = "Registration Rejected";
+        notifMsg = `Your registration request was rejected by Admin.${reason ? " Reason: " + reason : ""}`;
+      }
+
       await LabNotification.create({
         labId: registration._id,
-        title: approvalStatus === "approved" ? "Account Approved! 🎉" : "Registration Status Update",
-        message: approvalStatus === "approved"
-          ? "Congratulations! Your lab registration has been approved by Admin. You can now login and complete your lab profile."
-          : `Your registration request was rejected by Admin.${reason ? " Reason: " + reason : ""}`,
+        title: notifTitle,
+        message: notifMsg,
         type: "SYSTEM",
       });
 
       if (registration.fcmTokens && registration.fcmTokens.length > 0) {
         const { sendNotificationToUser } = await import("../services/notificationService.js");
         await sendNotificationToUser(registration.fcmTokens, {
-          title: approvalStatus === "approved" ? "Account Approved! 🎉" : "Registration Status Update",
-          body: approvalStatus === "approved"
-            ? "Your lab account has been approved by Admin. You can now login."
-            : `Your registration request was rejected.${reason ? " Reason: " + reason : ""}`,
-          data: { type: "account_approval", approvalStatus },
+          title: notifTitle,
+          body: notifMsg,
+          data: { type: "account_approval", approvalStatus, adminQuery: reason || "" },
         });
       }
     } catch (notifErr) {
