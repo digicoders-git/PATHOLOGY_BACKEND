@@ -69,6 +69,12 @@ export const sendNotificationToUser = async (userOrTokens, title, body, data = {
       title = opts.title || '';
     }
 
+    // Ensure all notification messages include official Team Labo India signature
+    if (body && typeof body === 'string' && !body.includes('Team Labo India')) {
+      body = `${body.trim()}\n\n— Team Labo India`;
+    }
+    data = { ...data, team: 'Team Labo India' };
+
     if (Array.isArray(userOrTokens)) {
       tokens = userOrTokens;
     } else if (typeof userOrTokens === 'string' && userOrTokens.length > 30 && !userOrTokens.match(/^[0-9a-fA-F]{24}$/)) {

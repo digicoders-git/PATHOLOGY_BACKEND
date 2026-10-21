@@ -167,6 +167,10 @@ const registrationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    declarationAccepted: {
+      type: Boolean,
+      default: false,
+    },
     isFeatured: {
       type: Boolean,
       default: false,

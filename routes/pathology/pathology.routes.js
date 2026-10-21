@@ -15,12 +15,14 @@ const cpUpload = upload.fields([
   { name: "labLogo", maxCount: 1 },
   { name: "labBanner", maxCount: 1 },
   { name: "pathologyDocs", maxCount: 1 },
+  { name: "cmoCertificate", maxCount: 1 },
+  { name: "nablCert", maxCount: 1 },
   { name: "certificationFiles", maxCount: 10 },
 ]);
 
 router.post("/login", loginPathology);
 router.get("/profile", pathologyAuth, getPathologyProfile);
-router.put("/update-profile", pathologyAuth, cpUpload, updatePathologyProfile);
+router.put("/update-profile", pathologyAuth, upload.any(), updatePathologyProfile);
 router.get("/my-tests", pathologyAuth, getMySelectedTests);
 router.put("/update-test-pricing", pathologyAuth, updateSingleTestPricing);
 router.get("/dashboard-stats", pathologyAuth, getLabDashboardData);

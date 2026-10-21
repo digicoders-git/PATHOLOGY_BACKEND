@@ -580,7 +580,7 @@ export const updateApprovalStatus = async (req, res) => {
           await LabNotification.create({
             labId: registration._id,
             title: "Welcome Bonus Credited! 🎁",
-            body: "Congratulations! 100 points have been credited to your lab wallet upon approval of your registration.",
+            body: "Congratulations! 100 points have been credited to your lab wallet upon approval of your registration.\n\n— Team Labo India",
             type: "WALLET",
           });
         }
@@ -604,13 +604,13 @@ export const updateApprovalStatus = async (req, res) => {
 
       if (approvalStatus === "approved") {
         notifTitle = "Account Approved! 🎉";
-        notifMsg = "Congratulations! Your lab registration has been approved by Admin and 100 welcome bonus points have been credited to your wallet. You can now login and complete your lab profile.";
+        notifMsg = "Congratulations! Your lab registration has been approved by Admin and 100 welcome bonus points have been credited to your wallet. You can now login and complete your lab profile.\n\n— Team Labo India";
       } else if (approvalStatus === "hold") {
         notifTitle = "Action Required: Registration on Hold ⚠️";
-        notifMsg = reason ? `Admin query: ${reason}` : "Please update your details for verification.";
+        notifMsg = `${reason ? `Admin Query: ${reason}\n\n` : ""}Please update your details for verification.\n\n— Team Labo India`;
       } else {
         notifTitle = "Registration Rejected";
-        notifMsg = `Your registration request was rejected by Admin.${reason ? " Reason: " + reason : ""}`;
+        notifMsg = `Your registration request was rejected by Admin.${reason ? "\nReason: " + reason : ""}\n\n— Team Labo India`;
       }
 
       const { sendNotificationToUser } = await import("../services/notificationService.js");
@@ -1170,7 +1170,7 @@ export const creditLabWallet = async (req, res) => {
       await LabNotification.create({
         labId: lab._id,
         title: "Wallet Points Credited! 🎁",
-        message: `₹${numAmount} (${creditType}) have been credited to your wallet by Admin. ${txDescription}`,
+        body: `₹${numAmount} (${creditType}) have been credited to your wallet by Admin. ${txDescription}\n\n— Team Labo India`,
         type: "WALLET",
       });
     } catch (notifErr) {

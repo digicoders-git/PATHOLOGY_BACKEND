@@ -178,16 +178,26 @@ export const updatePathologyProfile = async (req, res) => {
       };
     }
 
-    // Handle files
+    // Handle files (supports upload.any() array or upload.fields() object)
     if (req.files) {
-      if (req.files.labLogo) {
-        formData.labLogo = getLocalUrl(req, req.files.labLogo[0]);
-      }
-      if (req.files.labBanner) {
-        formData.labBanner = getLocalUrl(req, req.files.labBanner[0]);
-      }
-      if (req.files.pathologyDocs) {
-        formData.pathologyDocs = getLocalUrl(req, req.files.pathologyDocs[0]);
+      const fileList = Array.isArray(req.files)
+        ? req.files
+        : Object.values(req.files).flat();
+
+      for (const f of fileList) {
+        const url = getLocalUrl(req, f);
+        if (f.fieldname === "labLogo") formData.labLogo = url;
+        else if (f.fieldname === "labBanner") formData.labBanner = url;
+        else if (f.fieldname === "pathologyDocs") formData.pathologyDocs = url;
+        else if (f.fieldname === "cmoCertificate") formData.cmoCertificate = url;
+        else if (f.fieldname === "nablCert") formData.nablCert = url;
+        else if (f.fieldname === "certificationFiles") {
+          if (!Array.isArray(formData.Certification)) formData.Certification = [];
+          formData.Certification.push({
+            name: f.originalname.split(".")[0],
+            file: url,
+          });
+        }
       }
     }
 
@@ -196,8 +206,24 @@ export const updatePathologyProfile = async (req, res) => {
       if (typeof formData.selectedTests === "string") {
         formData.selectedTests = JSON.parse(formData.selectedTests);
       }
+      if (formData.certifications && !formData.Certification) {
+        formData.Certification = formData.certifications;
+      }
       if (typeof formData.Certification === "string") {
         formData.Certification = JSON.parse(formData.Certification);
+      }
+      if (req.files && req.files.certificationFiles) {
+        if (!Array.isArray(formData.Certification)) formData.Certification = [];
+        req.files.certificationFiles.forEach((file, index) => {
+          if (formData.Certification[index]) {
+            formData.Certification[index].file = getLocalUrl(req, file);
+          } else {
+            formData.Certification.push({
+              name: file.originalname.split(".")[0],
+              file: getLocalUrl(req, file),
+            });
+          }
+        });
       }
     } catch (e) {
       console.error("Parse error in pathology update:", e);
@@ -244,7 +270,7 @@ export const updatePathologyProfile = async (req, res) => {
     }
 
     // Convert booleans
-    ['homeCollection', 'is24x7', 'emergency', 'ambulanceService'].forEach(key => {
+    ['homeCollection', 'is24x7', 'emergency', 'ambulanceService', 'nabl', 'isProfileComplete', 'declarationAccepted'].forEach(key => {
       if (formData[key] === "true") formData[key] = true;
       if (formData[key] === "false") formData[key] = false;
     });
