@@ -154,9 +154,14 @@ const registrationSchema = new mongoose.Schema(
     cmoCertificate: {
       type: String,
     },
+    isGstRegistered: {
+      type: Boolean,
+      default: false,
+    },
     gstin: {
       type: String,
       trim: true,
+      default: "",
     },
 
     status: {

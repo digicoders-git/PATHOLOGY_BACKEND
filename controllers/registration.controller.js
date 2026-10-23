@@ -112,10 +112,16 @@ export const createRegistration = async (req, res) => {
     }
 
     // Parse booleans
-    ['homeCollection', 'is24x7', 'emergency', 'status', 'ambulanceService'].forEach(key => {
+    ['homeCollection', 'is24x7', 'emergency', 'status', 'ambulanceService', 'isGstRegistered'].forEach(key => {
       if (formData[key] === "true") formData[key] = true;
       if (formData[key] === "false") formData[key] = false;
     });
+
+    if (!formData.isGstRegistered) {
+      formData.gstin = "";
+    } else if (formData.gstin) {
+      formData.gstin = formData.gstin.trim().toUpperCase();
+    }
 
     // Convert numeric fields
     if (formData.establishmentYear) {
@@ -765,10 +771,16 @@ export const updateRegistration = async (req, res) => {
     }
 
     // Convert booleans
-    ['homeCollection', 'is24x7', 'emergency', 'status', 'ambulanceService'].forEach(key => {
+    ['homeCollection', 'is24x7', 'emergency', 'status', 'ambulanceService', 'isGstRegistered'].forEach(key => {
       if (formData[key] === "true") formData[key] = true;
       if (formData[key] === "false") formData[key] = false;
     });
+
+    if (formData.isGstRegistered === false) {
+      formData.gstin = "";
+    } else if (formData.gstin) {
+      formData.gstin = formData.gstin.trim().toUpperCase();
+    }
 
     const updated = await Registration.findByIdAndUpdate(id, formData, { new: true });
 
