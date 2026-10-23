@@ -5,6 +5,7 @@ import TestBooking from "../../model/testBooking.model.js";
 import generateToken from "../../config/token.js";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import { createNotification } from "../notification.controller.js";
 
 // Helper to get local URL path
 const getLocalUrl = (req, file) => {
@@ -70,15 +71,7 @@ export const loginPathology = async (req, res) => {
       }
     }
 
-    // Check if account is pending approval or inactive
-    if (pathology.approvalStatus === "pending") {
-      return res.status(403).json({
-        success: false,
-        isPendingApproval: true,
-        message: "Your registration request is pending admin approval. You can login once admin approves your account.",
-      });
-    }
-
+    // Check if account was rejected
     if (pathology.approvalStatus === "rejected") {
       return res.status(403).json({
         success: false,
@@ -87,8 +80,9 @@ export const loginPathology = async (req, res) => {
       });
     }
 
-    // Check if account is active
-    if (!pathology.status) {
+    // Allow pending and hold accounts to login so they can complete profile and check dashboard.
+    // Only block if account is inactive and NOT pending or on hold.
+    if (!pathology.status && pathology.approvalStatus !== "pending" && pathology.approvalStatus !== "hold") {
       return res.status(403).json({
         success: false,
         message: "Your account is currently inactive. Please contact administrator.",
@@ -279,6 +273,17 @@ export const updatePathologyProfile = async (req, res) => {
 
     if (!updated) {
       return res.status(404).json({ success: false, message: "Pathology not found" });
+    }
+
+    // Trigger admin notification when profile is completed and submitted for verification
+    if (formData.isProfileComplete === true) {
+      createNotification(
+        "Lab Profile Completed 📋",
+        `${updated.labName || "A registered lab"} has completed their full profile and submitted documents for 48-hour verification.`,
+        "registration",
+        "/dashboard/registrations",
+        updated._id
+      ).catch(() => {});
     }
 
     res.status(200).json({

@@ -25,8 +25,8 @@ export const pathologyAuth = async (req, res, next) => {
       return res.status(401).json({ success: false, message: "Unauthorized: Pathology account not found" });
     }
 
-    // Check if account is active
-    if (!pathology.status) {
+    // Check if account is active (allow pending and hold so lab can complete profile and manage tests)
+    if (!pathology.status && pathology.approvalStatus !== "pending" && pathology.approvalStatus !== "hold") {
       return res.status(403).json({ success: false, message: "Your account is inactive. Please contact admin." });
     }
 
