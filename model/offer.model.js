@@ -12,7 +12,7 @@ const offerSchema = new mongoose.Schema(
     discountAmount: { type: Number, default: 0 },
     offerType: {
       type: String,
-      enum: ["banner", "popup", "slider"],
+      enum: ["banner", "popup", "slider", "app_banner"],
       default: "slider",
     },
     image: {

@@ -91,7 +91,15 @@ export const getAllOffers = async (req, res) => {
 
     if (search) query.title = { $regex: search, $options: "i" };
     if (status !== undefined && status !== "") query.status = status === "true";
-    if (offerType) query.offerType = offerType;
+    if (offerType) {
+      if (offerType.includes(",")) {
+        query.offerType = { $in: offerType.split(",").map((t) => t.trim()) };
+      } else if (offerType.startsWith("!")) {
+        query.offerType = { $ne: offerType.substring(1).trim() };
+      } else {
+        query.offerType = offerType;
+      }
+    }
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const total = await Offer.countDocuments(query);
@@ -115,17 +123,32 @@ export const getAllOffers = async (req, res) => {
   }
 };
 
-// ── GET ACTIVE (Public — for website slider) ──────────────────────────────────
+// ── GET ACTIVE (Public — for website slider & patient app banners) ────────────
 export const getActiveOffers = async (req, res) => {
   try {
     const { offerType, labId } = req.query;
     const now = new Date();
 
+    let typeQuery = {};
+    if (offerType) {
+      if (offerType === "all") {
+        typeQuery = {};
+      } else if (offerType.startsWith("!")) {
+        typeQuery = { offerType: { $ne: offerType.slice(1) } };
+      } else if (offerType.includes(",")) {
+        typeQuery = { offerType: { $in: offerType.split(",") } };
+      } else {
+        typeQuery = { offerType };
+      }
+    } else {
+      typeQuery = { offerType: { $ne: "app_banner" } };
+    }
+
     const query = {
       status: true,
       labId: labId || null,
       $and: [
-        offerType ? { offerType } : {},
+        typeQuery,
         {
           $or: [
             { validFrom: null, validTo: null },
