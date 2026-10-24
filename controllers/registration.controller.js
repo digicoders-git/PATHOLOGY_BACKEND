@@ -1070,14 +1070,13 @@ export const getLabsByTest = async (req, res) => {
     }
 
     // Find all pricing entries for this test and populate lab data
-    const labPricings = await LabTestPricing.find({ test: testId })
+    const labPricings = await LabTestPricing.find({ test: testId, isDeleted: { $ne: true } })
       .populate({
         path: "registration",
         select: "labName labLogo labType fullAddress phone email rating status description",
-        match: { status: true } 
       });
 
-    // Filter out entries where registration is null (inactive labs)
+    // Filter out entries where registration is null
     const availableLabs = labPricings.filter(p => p.registration !== null);
 
     res.status(200).json({
