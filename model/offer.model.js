@@ -10,6 +10,7 @@ const offerSchema = new mongoose.Schema(
     couponCode: { type: String, trim: true, default: "" },
     discountPercent: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
+    coinsReward: { type: Number, default: 0 },
     offerType: {
       type: String,
       enum: ["banner", "popup", "slider", "app_banner"],

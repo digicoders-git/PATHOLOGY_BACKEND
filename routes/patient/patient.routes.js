@@ -1,7 +1,7 @@
 import express from "express";
 import { sendOtp, verifyOtp, updateProfile, getProfile, updateStatus, getAllPatients, getAllTestPricingForPatient } from "../../controllers/patient/patient.controller.js";
 import { getAvailableSlots, bookTest, getMyBookings } from "../../controllers/patient/booking.controller.js";
-import { getMyTransactions, getWalletData } from "../../controllers/patient/transaction.controller.js";
+import { getMyTransactions, getWalletData, claimOfferCoupon } from "../../controllers/patient/transaction.controller.js";
 import { submitSupportQuery, getMySupportQueries } from "../../controllers/patient/support.controller.js";
 import { getMyNotifications, markNotificationAsRead, markAllNotificationsAsRead, savePatientFCMToken, removePatientFCMToken } from "../../controllers/patient/patientNotification.controller.js";
 import { downloadReport } from "../../controllers/booking.controller.js";
@@ -20,6 +20,7 @@ router.get("/slots", getAvailableSlots);
 
 // Protected routes
 router.post("/validate-coupon", patientAuth, validateCoupon);
+router.post("/claim-coupon", patientAuth, claimOfferCoupon);
 router.get("/profile", patientAuth, getProfile);
 router.put("/update-profile", patientAdminAuth, upload.single('profilePhoto'), updateProfile);
 router.post("/book-test", patientAuth, bookTest);

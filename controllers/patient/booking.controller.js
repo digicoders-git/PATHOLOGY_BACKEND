@@ -38,7 +38,7 @@ export const bookTest = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { labTestPricingId, slotId, paymentMode, couponCode, adminDiscountAmount } = req.body;
+    const { labTestPricingId, slotId, paymentMode, couponCode, adminDiscountAmount, useWalletCoins } = req.body;
     const patientId = req.user.id;
 
     if (!labTestPricingId || !slotId) {
@@ -121,6 +121,21 @@ export const bookTest = async (req, res) => {
       }
     }
 
+    // Wallet Coins Deduction (min order 500 requirement)
+    let coinsUsed = 0;
+    const shouldApplyWallet = useWalletCoins === true || useWalletCoins === "true" || useWalletCoins === 1 || useWalletCoins === "1";
+    if (shouldApplyWallet) {
+      if (finalAmount < 500) {
+        throw new Error("Minimum order amount of ₹500 is required to use wallet coins.");
+      }
+      const Patient = (await import("../../model/patient/patient.model.js")).default;
+      const patientDoc = await Patient.findById(patientId).session(session);
+      if (patientDoc && (patientDoc.walletBalance || 0) > 0) {
+        coinsUsed = Math.min(patientDoc.walletBalance, finalAmount);
+        finalAmount = Math.max(0, finalAmount - coinsUsed);
+      }
+    }
+
     // 4. Create Booking
     const bookingData = {
       patientId,
@@ -140,6 +155,24 @@ export const bookTest = async (req, res) => {
 
     const booking = new TestBooking(bookingData);
     await booking.save({ session });
+
+    // Deduct wallet coins if used
+    if (coinsUsed > 0) {
+      const Patient = (await import("../../model/patient/patient.model.js")).default;
+      await Patient.findByIdAndUpdate(patientId, { $inc: { walletBalance: -coinsUsed } }, { session });
+
+      const Transaction = (await import("../../model/transaction.model.js")).default;
+      const coinTx = new Transaction({
+        userId: patientId,
+        userType: 'Patient',
+        amount: coinsUsed,
+        type: 'debit',
+        status: 'success',
+        description: `Used ${coinsUsed} Labo Coins for Booking`,
+        relatedBooking: booking._id,
+      });
+      await coinTx.save({ session });
+    }
 
     // Handle First Booking Wallet Credit
     if (isFirstBooking) {

@@ -24,6 +24,7 @@ export const createOffer = async (req, res) => {
       couponCode: b.couponCode || "",
       discountPercent: Number(b.discountPercent) || 0,
       discountAmount: Number(b.discountAmount) || 0,
+      coinsReward: Number(b.coinsReward) || 0,
       offerType: b.offerType || "slider",
       image: imageData,
       link: b.link || "",
@@ -61,6 +62,7 @@ export const updateOffer = async (req, res) => {
 
     if (b.discountPercent !== undefined) updateData.discountPercent = Number(b.discountPercent);
     if (b.discountAmount !== undefined) updateData.discountAmount = Number(b.discountAmount);
+    if (b.coinsReward !== undefined) updateData.coinsReward = Number(b.coinsReward);
     if (b.sortOrder !== undefined) updateData.sortOrder = Number(b.sortOrder);
     if (b.status !== undefined) updateData.status = b.status === "true" || b.status === true;
     if (b.validFrom !== undefined) updateData.validFrom = b.validFrom || null;

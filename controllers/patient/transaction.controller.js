@@ -72,3 +72,81 @@ export const getWalletData = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/**
+ * Claim offer / coupon code to get coins in wallet
+ */
+export const claimOfferCoupon = async (req, res) => {
+  try {
+    const patientId = req.user.id;
+    const { couponCode, offerId } = req.body;
+
+    const Offer = (await import("../../model/offer.model.js")).default;
+    let query = { status: true };
+    if (offerId) {
+      query._id = offerId;
+    } else if (couponCode) {
+      query.couponCode = { $regex: new RegExp("^" + couponCode.trim() + "$", "i") };
+    } else {
+      return res.status(400).json({ success: false, message: "Coupon code or offer ID is required" });
+    }
+
+    const offer = await Offer.findOne(query);
+    if (!offer) {
+      return res.status(404).json({ success: false, message: "Offer or coupon not found or inactive" });
+    }
+
+    // Check if patient already claimed this offer
+    const existingTx = await Transaction.findOne({
+      userId: patientId,
+      userType: 'Patient',
+      description: { $regex: new RegExp(offer.couponCode || offer.title, "i") }
+    });
+
+    if (existingTx) {
+      return res.status(400).json({
+        success: false,
+        message: "You have already claimed this offer!",
+        alreadyClaimed: true
+      });
+    }
+
+    // Determine coins to reward
+    let coinsToReward = Number(offer.coinsReward) || 0;
+    if (!coinsToReward || coinsToReward <= 0) {
+      if (offer.discountAmount && offer.discountAmount > 0) {
+        coinsToReward = Math.min(offer.discountAmount, 200);
+      } else if (offer.discountPercent && offer.discountPercent > 0) {
+        coinsToReward = Math.round(offer.discountPercent * 2);
+      } else {
+        coinsToReward = 50;
+      }
+    }
+
+    // Update patient wallet
+    const updatedPatient = await Patient.findByIdAndUpdate(
+      patientId,
+      { $inc: { walletBalance: coinsToReward } },
+      { new: true }
+    );
+
+    // Create transaction
+    await Transaction.create({
+      userId: patientId,
+      userType: 'Patient',
+      amount: coinsToReward,
+      type: 'credit',
+      status: 'success',
+      description: `Offer Claimed: ${offer.title} (${offer.couponCode || 'PROMO'})`,
+    });
+
+    return res.json({
+      success: true,
+      message: `Congratulations! ${coinsToReward} Labo Coins added to your wallet!`,
+      coinsAdded: coinsToReward,
+      walletBalance: updatedPatient.walletBalance
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};

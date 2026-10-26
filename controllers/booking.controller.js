@@ -12,7 +12,7 @@ import { rewardLabForFirstCompletedBooking } from "../services/bookingRewardServ
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
   try {
-    let { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, notes, couponCode, bookingFor, contactName, contactNumber } = req.body;
+    let { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, notes, couponCode, bookingFor, contactName, contactNumber, useWalletCoins } = req.body;
     const patientId = req.user.id; // From Token
     
     // Process prescription file path if uploaded
@@ -134,6 +134,24 @@ export const createBooking = async (req, res) => {
       }
     }
 
+    // Wallet Coins Deduction (min order 500 requirement)
+    let coinsUsed = 0;
+    const shouldApplyWallet = useWalletCoins === true || useWalletCoins === "true" || useWalletCoins === 1 || useWalletCoins === "1";
+    if (shouldApplyWallet) {
+      if (finalAmount < 500) {
+        return res.status(400).json({
+          success: false,
+          message: "Minimum order amount of ₹500 is required to use wallet coins."
+        });
+      }
+      const Patient = (await import("../model/patient/patient.model.js")).default;
+      const patientDoc = await Patient.findById(patientId);
+      if (patientDoc && (patientDoc.walletBalance || 0) > 0) {
+        coinsUsed = Math.min(patientDoc.walletBalance, finalAmount);
+        finalAmount = Math.max(0, finalAmount - coinsUsed);
+      }
+    }
+
     // Check if it's the first booking before saving
     const oldBookingCount = await Booking.countDocuments({ patient: patientId, status: { $ne: "Cancelled" } });
     const TestBookingModel = (await import("../model/testBooking.model.js")).default;
@@ -159,10 +177,28 @@ export const createBooking = async (req, res) => {
       contactNumber: contactNumber || "",
       couponCode: appliedCouponCode,
       adminDiscountAmount: validAdminDiscount,
+      walletCoinsUsed: coinsUsed,
       cashbackEarned: isFirstBooking ? 100 : 0,
     });
 
     await newBooking.save();
+
+    // Deduct wallet coins if used
+    if (coinsUsed > 0) {
+      const Patient = (await import("../model/patient/patient.model.js")).default;
+      await Patient.findByIdAndUpdate(patientId, { $inc: { walletBalance: -coinsUsed } });
+
+      const Transaction = (await import("../model/transaction.model.js")).default;
+      await new Transaction({
+        userId: patientId,
+        userType: 'Patient',
+        amount: coinsUsed,
+        type: 'debit',
+        status: 'success',
+        description: `Used ${coinsUsed} Labo Coins for Booking`,
+        relatedBooking: newBooking._id,
+      }).save();
+    }
 
     // Handle First Booking Wallet Credit
     if (isFirstBooking) {
@@ -361,6 +397,7 @@ export const getAllBookings = async (req, res) => {
       amount: b.finalAmount || 0,
       totalMrp: b.totalMrp || 0,
       totalDiscount: b.totalDiscount || 0,
+      walletCoinsUsed: b.walletCoinsUsed || 0,
       couponCode: b.couponCode || "",
       adminDiscountAmount: b.adminDiscountAmount || 0,
       paymentStatus: b.paymentStatus,
@@ -392,6 +429,7 @@ export const getAllBookings = async (req, res) => {
       amount: b.amount || 0,
       totalMrp: b.baseAmount || b.amount || 0,
       totalDiscount: b.totalDiscount || 0,
+      walletCoinsUsed: b.walletCoinsUsed || 0,
       couponCode: b.couponCode || "",
       adminDiscountAmount: b.adminDiscountAmount || 0,
       paymentStatus: b.paymentStatus,
