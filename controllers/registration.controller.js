@@ -49,6 +49,15 @@ export const createRegistration = async (req, res) => {
       if (req.files.cmoCertificate) {
         formData.cmoCertificate = getLocalUrl(req, req.files.cmoCertificate[0]);
       }
+      if (req.files.gstCertificate) {
+        const gstUrl = getLocalUrl(req, req.files.gstCertificate[0]);
+        formData.gstCertificate = gstUrl;
+        formData.gstDoc = gstUrl;
+      } else if (req.files.gstDoc) {
+        const gstUrl = getLocalUrl(req, req.files.gstDoc[0]);
+        formData.gstCertificate = gstUrl;
+        formData.gstDoc = gstUrl;
+      }
     }
 
     // Parse nested arrays and objects
@@ -93,18 +102,55 @@ export const createRegistration = async (req, res) => {
       if (req.files && req.files.certificationFiles) {
         if (!formData.Certification) formData.Certification = [];
 
+        let certFileNames = [];
+        if (req.body.certificationFileNames) {
+          try {
+            certFileNames = typeof req.body.certificationFileNames === "string" && req.body.certificationFileNames.startsWith("[")
+              ? JSON.parse(req.body.certificationFileNames)
+              : (Array.isArray(req.body.certificationFileNames) ? req.body.certificationFileNames : [req.body.certificationFileNames]);
+          } catch (_) {
+            certFileNames = Array.isArray(req.body.certificationFileNames) ? req.body.certificationFileNames : [req.body.certificationFileNames];
+          }
+        }
+
         req.files.certificationFiles.forEach((file, index) => {
-          // If we have existing certification data row for this file, update it
-          // Otherwise, create a new one. This assumes files match the order in the array
-          if (formData.Certification[index]) {
-            formData.Certification[index].file = getLocalUrl(req, file);
+          const fileUrl = getLocalUrl(req, file);
+          const targetName = certFileNames[index];
+
+          if (targetName) {
+            const found = formData.Certification.find(c => c.name?.trim().toLowerCase() === targetName.trim().toLowerCase());
+            if (found) {
+              found.file = fileUrl;
+            } else {
+              formData.Certification.push({
+                name: targetName,
+                file: fileUrl,
+              });
+            }
+          } else if (formData.Certification[index]) {
+            formData.Certification[index].file = fileUrl;
           } else {
             formData.Certification.push({
-              name: file.originalname.split('.')[0], // Default name if not provided
-              file: getLocalUrl(req, file)
+              name: file.originalname.split('.')[0],
+              file: fileUrl
             });
           }
         });
+      }
+
+      // Also sync CMO and Clinical Health Licence to legacy fields if present
+      if (Array.isArray(formData.Certification)) {
+        const cmoCert = formData.Certification.find(c => c.name?.trim().toUpperCase() === "CMO");
+        if (cmoCert && cmoCert.file && !formData.cmoCertificate) {
+          formData.cmoCertificate = cmoCert.file;
+        }
+        const healthLic = formData.Certification.find(c => {
+          const n = c.name?.trim().toLowerCase() || "";
+          return n.includes("clinical health") || n.includes("health licence") || n.includes("health license");
+        });
+        if (healthLic && healthLic.file && !formData.pathologyDocs) {
+          formData.pathologyDocs = healthLic.file;
+        }
       }
 
     } catch (parseError) {
@@ -730,6 +776,15 @@ export const updateRegistration = async (req, res) => {
       if (req.files.cmoCertificate) {
         formData.cmoCertificate = getLocalUrl(req, req.files.cmoCertificate[0]);
       }
+      if (req.files.gstCertificate) {
+        const gstUrl = getLocalUrl(req, req.files.gstCertificate[0]);
+        formData.gstCertificate = gstUrl;
+        formData.gstDoc = gstUrl;
+      } else if (req.files.gstDoc) {
+        const gstUrl = getLocalUrl(req, req.files.gstDoc[0]);
+        formData.gstCertificate = gstUrl;
+        formData.gstDoc = gstUrl;
+      }
     }
 
     // Parse JSON fields
@@ -741,25 +796,66 @@ export const updateRegistration = async (req, res) => {
         formData.test = JSON.parse(formData.test);
       }
       if (typeof formData.Certification === "string") {
-        formData.Certification = JSON.parse(formData.Certification);
+        try {
+          formData.Certification = JSON.parse(formData.Certification);
+        } catch (_) {
+          formData.Certification = [];
+        }
       }
 
       // Handle uploaded certification files
       if (req.files && req.files.certificationFiles) {
         if (!formData.Certification) formData.Certification = [];
 
-        // This logic might need refinement depending on how frontend sends updates
-        // Here we just append or update based on index if provided
+        let certFileNames = [];
+        if (req.body.certificationFileNames) {
+          try {
+            certFileNames = typeof req.body.certificationFileNames === "string" && req.body.certificationFileNames.startsWith("[")
+              ? JSON.parse(req.body.certificationFileNames)
+              : (Array.isArray(req.body.certificationFileNames) ? req.body.certificationFileNames : [req.body.certificationFileNames]);
+          } catch (_) {
+            certFileNames = Array.isArray(req.body.certificationFileNames) ? req.body.certificationFileNames : [req.body.certificationFileNames];
+          }
+        }
+
         req.files.certificationFiles.forEach((file, index) => {
-          if (formData.Certification[index]) {
-            formData.Certification[index].file = getLocalUrl(req, file);
+          const fileUrl = getLocalUrl(req, file);
+          const targetName = certFileNames[index];
+
+          if (targetName) {
+            const found = formData.Certification.find(c => c.name?.trim().toLowerCase() === targetName.trim().toLowerCase());
+            if (found) {
+              found.file = fileUrl;
+            } else {
+              formData.Certification.push({
+                name: targetName,
+                file: fileUrl,
+              });
+            }
+          } else if (formData.Certification[index]) {
+            formData.Certification[index].file = fileUrl;
           } else {
             formData.Certification.push({
               name: file.originalname.split('.')[0],
-              file: getLocalUrl(req, file)
+              file: fileUrl
             });
           }
         });
+      }
+
+      // Also sync CMO and Clinical Health Licence to legacy fields if present
+      if (Array.isArray(formData.Certification)) {
+        const cmoCert = formData.Certification.find(c => c.name?.trim().toUpperCase() === "CMO");
+        if (cmoCert && cmoCert.file) {
+          formData.cmoCertificate = cmoCert.file;
+        }
+        const healthLic = formData.Certification.find(c => {
+          const n = c.name?.trim().toLowerCase() || "";
+          return n.includes("clinical health") || n.includes("health licence") || n.includes("health license");
+        });
+        if (healthLic && healthLic.file) {
+          formData.pathologyDocs = healthLic.file;
+        }
       }
 
       // Hash password if updating

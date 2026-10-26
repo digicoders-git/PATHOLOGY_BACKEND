@@ -29,6 +29,8 @@ const cpUpload = upload.fields([
   { name: "certificationFiles", maxCount: 10 },
   { name: "pathologyDocs", maxCount: 1 },
   { name: "cmoCertificate", maxCount: 1 },
+  { name: "gstCertificate", maxCount: 1 },
+  { name: "gstDoc", maxCount: 1 },
 ]);
 
 // Public routes

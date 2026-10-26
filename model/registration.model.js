@@ -163,6 +163,14 @@ const registrationSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    gstCertificate: {
+      type: String,
+      default: "",
+    },
+    gstDoc: {
+      type: String,
+      default: "",
+    },
 
     status: {
       type: Boolean,

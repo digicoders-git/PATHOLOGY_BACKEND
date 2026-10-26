@@ -38,7 +38,12 @@ const parsePlanData = async (req) => {
 
     // Process offerBadge file upload
     if (req.file) {
-        const localPath = req.file.path.replace(/\\/g, "/");
+        const relativePath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+        const host = req.get ? req.get("host") : null;
+        const protocol = req.headers && req.headers["x-forwarded-proto"] ? req.headers["x-forwarded-proto"] : (req.protocol || "https");
+        const baseUrl = host ? `${protocol}://${host}` : "https://api.laboindia.com";
+        const fullLocalUrl = `${baseUrl}/${relativePath}`;
+
         let cloudUrl = "";
         try {
             cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/plans");
@@ -46,7 +51,7 @@ const parsePlanData = async (req) => {
             console.error("Cloudinary upload error for plan badge:", err);
         }
         planData.offerBadge = {
-            local: localPath,
+            local: fullLocalUrl,
             cloudinary: cloudUrl || ""
         };
     } else if (b.removeOfferBadge === "true" || b.removeOfferBadge === true) {
@@ -73,8 +78,21 @@ export const getPlans = async (req, res) => {
     try {
         const { status } = req.query;
         const query = status ? { status: status === 'true' } : {};
-        const plans = await Plan.find(query).sort({ displayOrder: 1, createdAt: -1 });
-        res.status(200).json({ success: true, data: plans });
+        const plans = await Plan.find(query).sort({ displayOrder: 1, createdAt: -1 }).lean();
+
+        // Ensure offerBadge has a fully qualified, accessible URL
+        const normalizedPlans = plans.map(p => {
+            if (p.offerBadge && typeof p.offerBadge === "object") {
+                const local = p.offerBadge.local || "";
+                if (local && !local.startsWith("http://") && !local.startsWith("https://")) {
+                    const clean = local.replace(/^\/+/, "");
+                    p.offerBadge.local = `https://api.laboindia.com/${clean}`;
+                }
+            }
+            return p;
+        });
+
+        res.status(200).json({ success: true, data: normalizedPlans });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

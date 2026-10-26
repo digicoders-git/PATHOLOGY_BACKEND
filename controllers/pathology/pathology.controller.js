@@ -173,6 +173,7 @@ export const updatePathologyProfile = async (req, res) => {
     }
 
     // Handle files (supports upload.any() array or upload.fields() object)
+    const certUploadedFiles = [];
     if (req.files) {
       const fileList = Array.isArray(req.files)
         ? req.files
@@ -185,12 +186,11 @@ export const updatePathologyProfile = async (req, res) => {
         else if (f.fieldname === "pathologyDocs") formData.pathologyDocs = url;
         else if (f.fieldname === "cmoCertificate") formData.cmoCertificate = url;
         else if (f.fieldname === "nablCert") formData.nablCert = url;
-        else if (f.fieldname === "certificationFiles") {
-          if (!Array.isArray(formData.Certification)) formData.Certification = [];
-          formData.Certification.push({
-            name: f.originalname.split(".")[0],
-            file: url,
-          });
+        else if (f.fieldname === "gstCertificate" || f.fieldname === "gstDoc") {
+          formData.gstCertificate = url;
+          formData.gstDoc = url;
+        } else if (f.fieldname === "certificationFiles") {
+          certUploadedFiles.push({ file: f, url });
         }
       }
     }
@@ -206,15 +206,39 @@ export const updatePathologyProfile = async (req, res) => {
       if (typeof formData.Certification === "string") {
         formData.Certification = JSON.parse(formData.Certification);
       }
-      if (req.files && req.files.certificationFiles) {
-        if (!Array.isArray(formData.Certification)) formData.Certification = [];
-        req.files.certificationFiles.forEach((file, index) => {
-          if (formData.Certification[index]) {
-            formData.Certification[index].file = getLocalUrl(req, file);
+      if (!Array.isArray(formData.Certification)) {
+        formData.Certification = [];
+      }
+
+      // Map certification files using certificationFileNames if provided
+      if (certUploadedFiles.length > 0) {
+        let certFileNames = [];
+        if (req.body.certificationFileNames) {
+          try {
+            certFileNames = typeof req.body.certificationFileNames === "string" && req.body.certificationFileNames.startsWith("[")
+              ? JSON.parse(req.body.certificationFileNames)
+              : (Array.isArray(req.body.certificationFileNames) ? req.body.certificationFileNames : [req.body.certificationFileNames]);
+          } catch (_) {}
+        }
+
+        certUploadedFiles.forEach((cf, index) => {
+          const targetName = certFileNames[index];
+          if (targetName) {
+            const match = formData.Certification.find(c => c && c.name === targetName);
+            if (match) {
+              match.file = cf.url;
+            } else {
+              formData.Certification.push({ name: targetName, file: cf.url });
+            }
+            if (targetName === "CMO") formData.cmoCertificate = cf.url;
+            if (targetName === "Clinical Health Licence") formData.pathologyDocs = cf.url;
+            if (targetName === "NABL") formData.nablCert = cf.url;
+          } else if (formData.Certification[index]) {
+            formData.Certification[index].file = cf.url;
           } else {
             formData.Certification.push({
-              name: file.originalname.split(".")[0],
-              file: getLocalUrl(req, file),
+              name: cf.file.originalname.split(".")[0],
+              file: cf.url,
             });
           }
         });
