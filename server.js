@@ -74,13 +74,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 const uploadsPath = path.join(__dirname, 'uploads');
 console.log('UPLOADS PATH:', uploadsPath, '| EXISTS:', fs.existsSync(uploadsPath));
-app.use('/uploads', express.static(uploadsPath, {
-  setHeaders: (res, filePath, stat) => {
-    res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Cache-Control', 'public, max-age=31536000');
-  }
-}));
+
+// Serve uploads - try both __dirname based and process.cwd() based paths
+[uploadsPath, path.join(process.cwd(), 'uploads')].forEach(p => {
+  app.use('/uploads', express.static(p, {
+    setHeaders: (res) => {
+      res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+      res.set('Access-Control-Allow-Origin', '*');
+      res.set('Cache-Control', 'public, max-age=31536000');
+    }
+  }));
+});
 
 await connectDB();
 
