@@ -4,9 +4,21 @@ import LabTestPricing from "../model/labTestPricing.model.js";
 import TestService from "../model/testService.model.js";
 import { createNotification } from "./notification.controller.js";
 import { sendNotificationToUser, sendNotificationToAdmins } from "../services/notificationService.js";
+import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { rewardLabForFirstCompletedBooking } from "../services/bookingRewardService.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Convert absolute multer path to relative URL path (uploads/xxx/file.ext)
+const toRelativePath = (absolutePath) => {
+  if (!absolutePath) return "";
+  const normalized = absolutePath.replace(/\\/g, "/");
+  const idx = normalized.indexOf("/uploads/");
+  return idx !== -1 ? normalized.slice(idx + 1) : normalized.replace(/^\/+/, "");
+};
 
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
@@ -609,7 +621,7 @@ export const uploadReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "No report file provided" });
     }
 
-    const reportPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+    const reportPath = toRelativePath(req.file.path);
     const finalReportUrl = `https://api.laboindia.com/${reportPath}`;
 
     // Try Booking (direct) first

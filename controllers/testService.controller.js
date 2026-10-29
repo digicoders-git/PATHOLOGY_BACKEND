@@ -1,4 +1,16 @@
 import TestService from "../model/testService.model.js";
+import { fileURLToPath } from "url";
+import path from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const toRelativePath = (absolutePath) => {
+  if (!absolutePath) return "";
+  const normalized = absolutePath.replace(/\\/g, "/");
+  const idx = normalized.indexOf("/uploads/");
+  return idx !== -1 ? normalized.slice(idx + 1) : normalized.replace(/^\/+/, "");
+};
 
 // ── Helper: Parse and Clean Data ──────────────────────────────────────────────
 const cleanStr = (val) => {
@@ -28,7 +40,7 @@ export const createTestService = async (req, res) => {
     // Handle image
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
-      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      const cleanPath = toRelativePath(req.file.path);
       imageData = { local: cleanPath, cloudinary: "" };
     }
 
@@ -95,7 +107,7 @@ export const updateTestService = async (req, res) => {
 
     // Image
     if (req.file) {
-      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      const cleanPath = toRelativePath(req.file.path);
       updateData.image = { local: cleanPath, cloudinary: "" };
     }
 

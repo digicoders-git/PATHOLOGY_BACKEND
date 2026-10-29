@@ -1,6 +1,18 @@
 import Offer from "../model/offer.model.js";
 import fs from "fs";
+import { fileURLToPath } from "url";
+import path from "path";
 import { sendNotificationToAllPatients } from "../services/notificationService.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const toRelativePath = (absolutePath) => {
+  if (!absolutePath) return "";
+  const normalized = absolutePath.replace(/\\/g, "/");
+  const idx = normalized.indexOf("/uploads/");
+  return idx !== -1 ? normalized.slice(idx + 1) : normalized.replace(/^\/+/, "");
+};
 
 // ── CREATE ────────────────────────────────────────────────────────────────────
 export const createOffer = async (req, res) => {
@@ -9,8 +21,7 @@ export const createOffer = async (req, res) => {
 
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
-      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-      imageData = { local: cleanPath, cloudinary: "" };
+      imageData = { local: toRelativePath(req.file.path), cloudinary: "" };
     }
 
     const offer = await Offer.create({
@@ -65,8 +76,7 @@ export const updateOffer = async (req, res) => {
     if (b.validTo !== undefined) updateData.validTo = b.validTo || null;
 
     if (req.file) {
-      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-      updateData.image = { local: cleanPath, cloudinary: "" };
+      updateData.image = { local: toRelativePath(req.file.path), cloudinary: "" };
     }
 
     const offer = await Offer.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -98,7 +108,7 @@ const normalizeOffer = (o) => {
         url = `https://api.laboindia.com/${local.replace(/^\/+/, "")}`;
       }
     }
-    doc.image = { local: url, cloudinary: cloudinary };
+    doc.image = { local: url, cloudinary: cloudinary || url };
   }
   return doc;
 };
