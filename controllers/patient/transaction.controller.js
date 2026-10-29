@@ -1,5 +1,6 @@
 import Transaction from "../../model/transaction.model.js";
 import Patient from "../../model/patient/patient.model.js";
+import mongoose from "mongoose";
 
 /**
  * Get patient's transaction history
@@ -154,6 +155,95 @@ export const claimOfferCoupon = async (req, res) => {
       coinsAdded: coinsToReward,
       walletBalance: updatedPatient.walletBalance,
       offerId: offer._id.toString(),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * ONE-TIME MIGRATION: Backfill claimedOffers for all patients
+ * who already claimed offers via transaction history
+ * POST /admin/migrate-claimed-offers
+ */
+export const migrateClaimedOffers = async (req, res) => {
+  try {
+    const Offer = (await import("../../model/offer.model.js")).default;
+
+    // Get all offers to build couponCode -> _id map
+    const allOffers = await Offer.find({}, "_id title couponCode");
+    const offerMap = {}; // couponCode.toLowerCase() -> offerId
+    const titleMap = {}; // title keyword -> offerId
+    for (const o of allOffers) {
+      if (o.couponCode?.trim()) {
+        offerMap[o.couponCode.trim().toLowerCase()] = o._id;
+      }
+      if (o.title?.trim()) {
+        titleMap[o.title.trim().toLowerCase()] = o._id;
+      }
+    }
+
+    // Find all "Offer Claimed" transactions
+    const claimTxs = await Transaction.find({
+      userType: "Patient",
+      type: "credit",
+      description: { $regex: /Offer Claimed/i },
+    }).select("userId description");
+
+    let updated = 0;
+    let skipped = 0;
+    const errors = [];
+
+    for (const tx of claimTxs) {
+      try {
+        // Extract coupon code from description: "Offer Claimed: Title (COUPONCODE)"
+        let matchedOfferId = null;
+
+        const parenMatch = tx.description.match(/\(([^)]+)\)$/);
+        if (parenMatch) {
+          const code = parenMatch[1].trim().toLowerCase();
+          if (code !== "promo" && offerMap[code]) {
+            matchedOfferId = offerMap[code];
+          }
+        }
+
+        // Fallback: match by title keyword
+        if (!matchedOfferId) {
+          const titlePart = tx.description
+            .replace(/^Offer Claimed:\s*/i, "")
+            .replace(/\s*\([^)]*\)$/, "")
+            .trim()
+            .toLowerCase();
+          if (titleMap[titlePart]) {
+            matchedOfferId = titleMap[titlePart];
+          }
+        }
+
+        if (!matchedOfferId) {
+          skipped++;
+          continue;
+        }
+
+        // Add to patient's claimedOffers (no duplicates via $addToSet)
+        const result = await Patient.updateOne(
+          { _id: tx.userId },
+          { $addToSet: { claimedOffers: matchedOfferId } }
+        );
+
+        if (result.modifiedCount > 0) updated++;
+        else skipped++;
+      } catch (e) {
+        errors.push(`tx ${tx._id}: ${e.message}`);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Migration complete. ${updated} patient records updated, ${skipped} skipped.`,
+      totalTransactionsScanned: claimTxs.length,
+      updated,
+      skipped,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
