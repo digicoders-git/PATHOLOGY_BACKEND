@@ -72,7 +72,9 @@ app.use(
 // Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+const uploadsPath = path.join(__dirname, 'uploads');
+console.log('UPLOADS PATH:', uploadsPath, '| EXISTS:', fs.existsSync(uploadsPath));
+app.use('/uploads', express.static(uploadsPath, {
   setHeaders: (res, filePath, stat) => {
     res.set('Cross-Origin-Resource-Policy', 'cross-origin');
     res.set('Access-Control-Allow-Origin', '*');
