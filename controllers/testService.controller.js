@@ -1,5 +1,4 @@
 import TestService from "../model/testService.model.js";
-import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 
 // ── Helper: Parse and Clean Data ──────────────────────────────────────────────
 const cleanStr = (val) => {
@@ -29,8 +28,8 @@ export const createTestService = async (req, res) => {
     // Handle image
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
-      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
-      imageData = { local: req.file.path.replace(/\\/g, "/"), cloudinary: cloudinaryUrl || "" };
+      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      imageData = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const newService = await TestService.create({
@@ -96,8 +95,8 @@ export const updateTestService = async (req, res) => {
 
     // Image
     if (req.file) {
-      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/tests");
-      updateData.image = { local: req.file.path.replace(/\\/g, "/"), cloudinary: cloudinaryUrl || "" };
+      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      updateData.image = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const service = await TestService.findByIdAndUpdate(req.params.id, updateData, { new: true });

@@ -3,7 +3,6 @@ import Booking from "../../model/booking.model.js";
 import Patient from "../../model/patient/patient.model.js";
 import LabSlot from "../../model/labSlot.model.js";
 import mongoose from "mongoose";
-import { uploadOnCloudinary } from "../../utils/cloudinary.js";
 import { sendNotificationToUser } from "../../services/notificationService.js";
 import { rewardLabForFirstCompletedBooking } from "../../services/bookingRewardService.js";
 
@@ -408,12 +407,10 @@ export const uploadTestReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload a report file" });
     }
 
-    const localFilePath = req.file.path.replace(/\\/g, "/");
-    const fullUrl = `${req.protocol}://${req.get("host")}/${localFilePath}`;
+    const localFilePath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+    const reportPath = `https://api.laboindia.com/${localFilePath}`;
     
-    // Cloudinary restricts PDF delivery by default, causing 401 Unauthorized errors on download.
-    // Instead of Cloudinary, we serve the report locally using the static uploads folder.
-    const reportPath = fullUrl;
+    // Cloudinary removed — reports served from live server uploads folder
 
     // 1. Try to find and update in direct Booking model
     let booking = await Booking.findOne({ _id: bookingId, registration: labId });

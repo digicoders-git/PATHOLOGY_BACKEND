@@ -5,7 +5,6 @@ import TestService from "../model/testService.model.js";
 import { createNotification } from "./notification.controller.js";
 import { sendNotificationToUser, sendNotificationToAdmins } from "../services/notificationService.js";
 import path from "path";
-import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 import fs from "fs";
 import { rewardLabForFirstCompletedBooking } from "../services/bookingRewardService.js";
 
@@ -610,12 +609,8 @@ export const uploadReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "No report file provided" });
     }
 
-    const reportPath = req.file.path.replace(/\\/g, "/");
-    const fullUrl = `${req.protocol}://${req.get("host")}/${reportPath}`;
-    
-    // Cloudinary restricts PDF delivery by default, causing 401 Unauthorized errors.
-    // We bypass Cloudinary and serve the report locally using the static uploads folder.
-    const finalReportUrl = fullUrl;
+    const reportPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+    const finalReportUrl = `https://api.laboindia.com/${reportPath}`;
 
     // Try Booking (direct) first
     let booking = await Booking.findById(id);

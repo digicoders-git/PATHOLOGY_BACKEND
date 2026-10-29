@@ -90,7 +90,8 @@ export const updateProfile = async (req, res) => {
 
     // Validations handled by Schema, but additional checks for file
     if (req.file) {
-      updateData.profileImage = `uploads/profiles/${req.file.filename}`;
+      const cleanPath = `uploads/profiles/${req.file.filename}`.replace(/^\/+/, '');
+      updateData.profileImage = `https://api.laboindia.com/${cleanPath}`;
     }
 
     // Double check name validation manually if needed for better error message

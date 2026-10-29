@@ -1,5 +1,4 @@
 import Offer from "../model/offer.model.js";
-import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 import fs from "fs";
 import { sendNotificationToAllPatients } from "../services/notificationService.js";
 
@@ -10,11 +9,8 @@ export const createOffer = async (req, res) => {
 
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
-      const cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/offers");
-      imageData = {
-        local: req.file.path.replace(/\\/g, "/"),
-        cloudinary: cloudUrl || "",
-      };
+      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      imageData = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const offer = await Offer.create({
@@ -69,11 +65,8 @@ export const updateOffer = async (req, res) => {
     if (b.validTo !== undefined) updateData.validTo = b.validTo || null;
 
     if (req.file) {
-      const cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/offers");
-      updateData.image = {
-        local: req.file.path.replace(/\\/g, "/"),
-        cloudinary: cloudUrl || "",
-      };
+      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      updateData.image = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const offer = await Offer.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -83,6 +76,23 @@ export const updateOffer = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
+};
+
+const normalizeOffer = (o) => {
+  const doc = o && o.toObject ? o.toObject() : { ...o };
+  if (doc.image && typeof doc.image === "object") {
+    let local = doc.image.local || "";
+    if (local) {
+      if (local.includes("pathology-backend-live.onrender.com")) {
+        local = local.replace("https://pathology-backend-live.onrender.com", "https://api.laboindia.com");
+      } else if (!local.startsWith("http://") && !local.startsWith("https://")) {
+        const clean = local.replace(/^\/+/, "");
+        local = `https://api.laboindia.com/${clean}`;
+      }
+      doc.image.local = local;
+    }
+  }
+  return doc;
 };
 
 // ── GET ALL (Admin) ───────────────────────────────────────────────────────────
@@ -112,7 +122,7 @@ export const getAllOffers = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: offers,
+      data: offers.map(normalizeOffer),
       pagination: {
         total,
         page: parseInt(page),
@@ -163,7 +173,7 @@ export const getActiveOffers = async (req, res) => {
     };
 
     const offers = await Offer.find(query).sort({ sortOrder: 1, createdAt: -1 });
-    res.status(200).json({ success: true, data: offers });
+    res.status(200).json({ success: true, data: offers.map(normalizeOffer) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

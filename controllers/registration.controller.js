@@ -8,12 +8,18 @@ const XLSX = require('xlsx');
 import fs from "fs";
 import { createNotification } from "./notification.controller.js";
 
-// Helper to get local URL path
+// Helper: returns full live URL for local uploads
 const getLocalUrl = (req, file) => {
   if (!file) return null;
-  // Standardize slashes for URL and prepend base URL if needed
-  const relativePath = file.path.replace(/\\/g, "/");
-  return `${req.protocol}://${req.get("host")}/${relativePath}`;
+  const cleanPath = file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+  return `https://api.laboindia.com/${cleanPath}`;
+};
+
+// Same helper for images (no cloudinary)
+const getFileUrl = async (file) => {
+  if (!file) return null;
+  const cleanPath = file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+  return `https://api.laboindia.com/${cleanPath}`;
 };
 
 export const createRegistration = async (req, res) => {

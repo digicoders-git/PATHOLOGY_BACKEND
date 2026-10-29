@@ -1,5 +1,4 @@
 import Offer from "../../model/offer.model.js";
-import { uploadAndKeepLocal } from "../../utils/cloudinary.js";
 import fs from "fs";
 
 // ── CREATE (Lab Owner) ────────────────────────────────────────────────────────
@@ -10,11 +9,8 @@ export const createLabOffer = async (req, res) => {
 
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
-      const cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/lab-offers");
-      imageData = {
-        local: req.file.path.replace(/\\/g, "/"),
-        cloudinary: cloudUrl || "",
-      };
+      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      imageData = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const offer = await Offer.create({
@@ -61,10 +57,9 @@ export const updateLabOffer = async (req, res) => {
     if (b.validTo !== undefined) offer.validTo = b.validTo || null;
 
     if (req.file) {
-      // Delete old local file
       if (offer.image?.local && fs.existsSync(offer.image.local)) fs.unlinkSync(offer.image.local);
-      const cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/lab-offers");
-      offer.image = { local: req.file.path.replace(/\\/g, "/"), cloudinary: cloudUrl || "" };
+      const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+      offer.image = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     await offer.save();

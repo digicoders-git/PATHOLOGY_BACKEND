@@ -7,11 +7,11 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { createNotification } from "../notification.controller.js";
 
-// Helper to get local URL path
+// Helper to get full live URL for local uploads
 const getLocalUrl = (req, file) => {
   if (!file) return null;
-  const relativePath = file.path.replace(/\\/g, "/");
-  return `${req.protocol}://${req.get("host")}/${relativePath}`;
+  const cleanPath = file.path.replace(/\\/g, "/").replace(/^\/+/, "");
+  return `https://api.laboindia.com/${cleanPath}`;
 };
 
 export const loginPathology = async (req, res) => {

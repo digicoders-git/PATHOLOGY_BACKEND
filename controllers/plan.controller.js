@@ -1,7 +1,6 @@
 import Plan from "../model/plan.model.js";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import { uploadAndKeepLocal } from "../utils/cloudinary.js";
 
 const getRazorpay = () => new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
@@ -39,20 +38,9 @@ const parsePlanData = async (req) => {
     // Process offerBadge file upload
     if (req.file) {
         const relativePath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-        const host = req.get ? req.get("host") : null;
-        const protocol = req.headers && req.headers["x-forwarded-proto"] ? req.headers["x-forwarded-proto"] : (req.protocol || "https");
-        const baseUrl = host ? `${protocol}://${host}` : "https://api.laboindia.com";
-        const fullLocalUrl = `${baseUrl}/${relativePath}`;
-
-        let cloudUrl = "";
-        try {
-            cloudUrl = await uploadAndKeepLocal(req.file.path, "pathology/plans");
-        } catch (err) {
-            console.error("Cloudinary upload error for plan badge:", err);
-        }
         planData.offerBadge = {
-            local: fullLocalUrl,
-            cloudinary: cloudUrl || ""
+            local: `https://api.laboindia.com/${relativePath}`,
+            cloudinary: ""
         };
     } else if (b.removeOfferBadge === "true" || b.removeOfferBadge === true) {
         planData.offerBadge = { local: "", cloudinary: "" };

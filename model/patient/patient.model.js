@@ -51,6 +51,11 @@ const patientSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    claimedOffers: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: "Offer",
+      default: [],
+    },
   },
   { timestamps: true }
 );

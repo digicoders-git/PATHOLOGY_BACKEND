@@ -1,7 +1,6 @@
 import Category from "../../model/category.model.js";
 import Subcategory from "../../model/subcategory.model.js";
 import TestService from "../../model/testService.model.js";
-import { uploadAndKeepLocal } from "../../utils/cloudinary.js";
 
 // POST /categories
 export const createCategory = async (req, res) => {
@@ -14,11 +13,8 @@ export const createCategory = async (req, res) => {
 
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
-      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/categories");
-      imageData = {
-        local: req.file.path.replace(/\\/g, '/'),
-        cloudinary: cloudinaryUrl || ""
-      };
+      const cleanPath = req.file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+      imageData = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const category = await Category.create({ 
@@ -76,11 +72,8 @@ export const updateCategory = async (req, res) => {
     let updateData = { name, description, status };
 
     if (req.file) {
-      const cloudinaryUrl = await uploadAndKeepLocal(req.file.path, "pathology/categories");
-      updateData.image = {
-        local: req.file.path.replace(/\\/g, '/'),
-        cloudinary: cloudinaryUrl || ""
-      };
+      const cleanPath = req.file.path.replace(/\\/g, '/').replace(/^\/+/, '');
+      updateData.image = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
     }
 
     const category = await Category.findByIdAndUpdate(id, updateData, { new: true });

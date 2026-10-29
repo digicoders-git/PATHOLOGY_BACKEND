@@ -65,6 +65,7 @@ export const getWalletData = async (req, res) => {
       success: true,
       data: {
         walletBalance: patient.walletBalance || 0,
+        claimedOffers: (patient.claimedOffers || []).map(id => id.toString()),
         transactions: transactions
       }
     });
@@ -96,18 +97,22 @@ export const claimOfferCoupon = async (req, res) => {
       return res.status(404).json({ success: false, message: "Offer or coupon not found or inactive" });
     }
 
-    // Check if patient already claimed this offer
-    const existingTx = await Transaction.findOne({
-      userId: patientId,
-      userType: 'Patient',
-      description: { $regex: new RegExp(offer.couponCode || offer.title, "i") }
-    });
+    // Check if patient already claimed this offer (by offerId — reliable)
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ success: false, message: "Patient not found" });
+    }
 
-    if (existingTx) {
+    const alreadyClaimed = patient.claimedOffers?.some(
+      (id) => id.toString() === offer._id.toString()
+    );
+
+    if (alreadyClaimed) {
       return res.status(400).json({
         success: false,
         message: "You have already claimed this offer!",
-        alreadyClaimed: true
+        alreadyClaimed: true,
+        offerId: offer._id.toString(),
       });
     }
 
@@ -123,14 +128,17 @@ export const claimOfferCoupon = async (req, res) => {
       }
     }
 
-    // Update patient wallet
+    // Update patient wallet + mark offer as claimed atomically
     const updatedPatient = await Patient.findByIdAndUpdate(
       patientId,
-      { $inc: { walletBalance: coinsToReward } },
+      {
+        $inc: { walletBalance: coinsToReward },
+        $addToSet: { claimedOffers: offer._id },
+      },
       { new: true }
     );
 
-    // Create transaction
+    // Create transaction record
     await Transaction.create({
       userId: patientId,
       userType: 'Patient',
@@ -144,7 +152,8 @@ export const claimOfferCoupon = async (req, res) => {
       success: true,
       message: `Congratulations! ${coinsToReward} Labo Coins added to your wallet!`,
       coinsAdded: coinsToReward,
-      walletBalance: updatedPatient.walletBalance
+      walletBalance: updatedPatient.walletBalance,
+      offerId: offer._id.toString(),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });

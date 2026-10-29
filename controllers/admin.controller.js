@@ -2,11 +2,10 @@ import generateToken from "../config/token.js"
 import Admin from "../model/admin.models.js"
 import bcrypt from 'bcryptjs'
 
-// Helper to get local URL path
+// Helper to get local relative path
 const getLocalUrl = (req, file) => {
   if (!file) return null;
-  const relativePath = file.path.replace(/\\/g, "/");
-  return `${req.protocol}://${req.get("host")}/${relativePath}`;
+  return file.path.replace(/\\/g, "/");
 };
 
 export const create = async (req, res) => {
