@@ -29,7 +29,7 @@ export const createTestService = async (req, res) => {
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
       const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-      imageData = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
+      imageData = { local: cleanPath, cloudinary: "" };
     }
 
     const newService = await TestService.create({
@@ -96,7 +96,7 @@ export const updateTestService = async (req, res) => {
     // Image
     if (req.file) {
       const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-      updateData.image = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
+      updateData.image = { local: cleanPath, cloudinary: "" };
     }
 
     const service = await TestService.findByIdAndUpdate(req.params.id, updateData, { new: true });

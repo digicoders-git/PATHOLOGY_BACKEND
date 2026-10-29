@@ -10,7 +10,7 @@ export const createOffer = async (req, res) => {
     let imageData = { local: "", cloudinary: "" };
     if (req.file) {
       const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-      imageData = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
+      imageData = { local: cleanPath, cloudinary: "" };
     }
 
     const offer = await Offer.create({
@@ -66,7 +66,7 @@ export const updateOffer = async (req, res) => {
 
     if (req.file) {
       const cleanPath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-      updateData.image = { local: `https://api.laboindia.com/${cleanPath}`, cloudinary: "" };
+      updateData.image = { local: cleanPath, cloudinary: "" };
     }
 
     const offer = await Offer.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -81,16 +81,24 @@ export const updateOffer = async (req, res) => {
 const normalizeOffer = (o) => {
   const doc = o && o.toObject ? o.toObject() : { ...o };
   if (doc.image && typeof doc.image === "object") {
-    let local = doc.image.local || "";
-    if (local) {
-      if (local.includes("pathology-backend-live.onrender.com")) {
-        local = local.replace("https://pathology-backend-live.onrender.com", "https://api.laboindia.com");
-      } else if (!local.startsWith("http://") && !local.startsWith("https://")) {
-        const clean = local.replace(/^\/+/, "");
-        local = `https://api.laboindia.com/${clean}`;
+    // Prefer cloudinary if available
+    let url = "";
+    const cloudinary = (doc.image.cloudinary || "").trim();
+    const local = (doc.image.local || "").trim();
+
+    if (cloudinary) {
+      url = cloudinary;
+    } else if (local) {
+      if (local.startsWith("http://") || local.startsWith("https://")) {
+        // Fix old render.com URLs
+        url = local.replace("https://pathology-backend-live.onrender.com", "https://api.laboindia.com")
+                   .replace("http://pathology-backend-live.onrender.com", "https://api.laboindia.com");
+      } else {
+        // Relative path → full URL
+        url = `https://api.laboindia.com/${local.replace(/^\/+/, "")}`;
       }
-      doc.image.local = local;
     }
+    doc.image = { local: url, cloudinary: cloudinary };
   }
   return doc;
 };
@@ -158,7 +166,6 @@ export const getActiveOffers = async (req, res) => {
 
     const query = {
       status: true,
-      labId: labId || null,
       $and: [
         typeQuery,
         {
@@ -171,6 +178,8 @@ export const getActiveOffers = async (req, res) => {
         },
       ],
     };
+
+    if (labId) query.labId = labId;
 
     const offers = await Offer.find(query).sort({ sortOrder: 1, createdAt: -1 });
     res.status(200).json({ success: true, data: offers.map(normalizeOffer) });
