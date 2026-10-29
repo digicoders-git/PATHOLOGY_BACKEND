@@ -780,28 +780,43 @@ export const downloadReport = async (req, res) => {
     // Check in TestBooking (app) if not found above
     if (!booking) {
       const testBooking = await TestBooking.findOne({ _id: id, patientId });
-      reportFile = testBooking?.reportFile;
       if (!testBooking) {
         return res.status(403).json({ success: false, message: "Unauthorized: This report does not belong to you" });
       }
+      reportFile = testBooking?.reportFile;
     }
 
     if (!reportFile) {
       return res.status(404).json({ success: false, message: "Report not uploaded yet" });
     }
 
+    // Extract relative path from full URL if stored as https://api.laboindia.com/uploads/...
+    let relativePath = reportFile;
     if (reportFile.startsWith("http")) {
-      // Direct redirect to the file URL — no proxy needed since /uploads is static
-      return res.redirect(reportFile.replace(/^http:/, 'https:'));
+      try {
+        const urlObj = new URL(reportFile);
+        relativePath = urlObj.pathname.replace(/^\//, ""); // remove leading slash
+      } catch (_) {
+        relativePath = reportFile.replace(/^https?:\/\/[^/]+\//, "");
+      }
     }
 
-    const filePath = path.join(process.cwd(), reportFile);
+    const filePath = path.join(process.cwd(), relativePath);
+    console.log(`[downloadReport] Serving file: ${filePath}`);
 
     if (!fs.existsSync(filePath)) {
+      console.error(`[downloadReport] File not found: ${filePath}`);
       return res.status(404).json({ success: false, message: "Report file not found on server" });
     }
 
-    res.download(filePath);
+    const ext = path.extname(filePath).toLowerCase();
+    const mimeTypes = { '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' };
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="report_${id}${ext}"`);
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    fs.createReadStream(filePath).pipe(res);
   } catch (error) {
     console.error("DOWNLOAD_REPORT_ERROR:", error);
     res.status(500).json({ success: false, message: "Download failed: " + error.message });
