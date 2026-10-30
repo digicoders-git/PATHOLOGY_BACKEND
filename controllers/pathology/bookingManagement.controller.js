@@ -407,8 +407,10 @@ export const uploadTestReport = async (req, res) => {
       return res.status(400).json({ success: false, message: "Please upload a report file" });
     }
 
-    const localFilePath = req.file.path.replace(/\\/g, "/").replace(/^\/+/, "");
-    const reportPath = `https://api.laboindia.com/${localFilePath}`;
+    const normalized = req.file.path.replace(/\\/g, "/");
+    const uploadsIdx = normalized.indexOf("/uploads/");
+    const relativePath = uploadsIdx !== -1 ? normalized.slice(uploadsIdx + 1) : normalized.replace(/^\/+/, "");
+    const reportPath = `https://api.laboindia.com/${relativePath}`;
     
     // Cloudinary removed — reports served from live server uploads folder
 
