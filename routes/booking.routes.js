@@ -8,6 +8,7 @@ import {
   uploadReport,
   deleteBooking,
   downloadReport,
+  createRazorpayOrder,
 } from "../controllers/booking.controller.js";
 import { patientAuth } from "../middleware/patientAuth.middleware.js";
 import { verifyAdminToken } from "../middleware/verifyAdminToken.js";
@@ -38,6 +39,9 @@ const combinedAuth = (req, res, next) => {
 
 // 1. Create Booking (Patient Token)
 router.post("/create", patientAuth, upload.single("prescription"), createBooking);
+
+// 1b. Create Razorpay Order
+router.post("/create-order", patientAuth, createRazorpayOrder);
 
 // 2. Get All Bookings (Admin sees all, Patient sees own, Lab sees own)
 router.get("/get", combinedAuth, getAllBookings);

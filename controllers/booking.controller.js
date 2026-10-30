@@ -8,6 +8,31 @@ import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { rewardLabForFirstCompletedBooking } from "../services/bookingRewardService.js";
+import Razorpay from "razorpay";
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+// Create Razorpay Order
+export const createRazorpayOrder = async (req, res) => {
+  try {
+    const { amount } = req.body; // amount in rupees
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid amount" });
+    }
+    const order = await razorpay.orders.create({
+      amount: Math.round(amount * 100), // paise
+      currency: "INR",
+      receipt: `receipt_${Date.now()}`,
+    });
+    res.status(200).json({ success: true, data: order });
+  } catch (error) {
+    console.error("CREATE_RAZORPAY_ORDER_ERROR:", error);
+    res.status(500).json({ success: false, message: "Failed to create payment order" });
+  }
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
