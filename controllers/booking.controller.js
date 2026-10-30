@@ -48,7 +48,7 @@ const toRelativePath = (absolutePath) => {
 // 1. Create a New Booking
 export const createBooking = async (req, res) => {
   try {
-    let { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, notes, couponCode, bookingFor, contactName, contactNumber, useWalletCoins } = req.body;
+    let { registration, tests, scheduledDate, scheduleTime, sampleCollectionType, address, paymentMethod, paymentStatus, razorpayPaymentId, notes, couponCode, bookingFor, contactName, contactNumber, useWalletCoins } = req.body;
     const patientId = req.user.id; // From Token
     
     // Process prescription file path if uploaded
@@ -207,6 +207,8 @@ export const createBooking = async (req, res) => {
       sampleCollectionType,
       address,
       paymentMethod,
+      paymentStatus: paymentStatus || (paymentMethod === 'Online' && razorpayPaymentId ? 'Paid' : 'Pending'),
+      razorpayPaymentId: razorpayPaymentId || '',
       notes,
       bookingFor: bookingFor || "Myself",
       contactName: contactName || "",

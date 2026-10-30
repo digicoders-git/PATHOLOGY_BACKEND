@@ -95,6 +95,10 @@ const bookingSchema = new mongoose.Schema(
       enum: ["COD", "Online"],
       default: "COD",
     },
+    razorpayPaymentId: {
+      type: String,
+      default: "",
+    },
     notes: {
       type: String,
     },
