@@ -157,7 +157,7 @@ export const togglePlanStatus = async (req, res) => {
 // Create Purchase Order for a Plan (Lab)
 export const createPlanPurchaseOrder = async (req, res) => {
     try {
-        const { planId } = req.body;
+        const { planId, useWalletCoins } = req.body;
         const labId = req.user.id;
         
         if (!planId) {
@@ -169,15 +169,42 @@ export const createPlanPurchaseOrder = async (req, res) => {
             return res.status(404).json({ success: false, message: "Plan not found" });
         }
 
+        const Registration = (await import("../model/registration.model.js")).default;
+        const lab = await Registration.findById(labId);
+        if (!lab) {
+            return res.status(404).json({ success: false, message: "Lab not found" });
+        }
+
+        let coinsUsed = 0;
+        const shouldApplyWallet = useWalletCoins === true || useWalletCoins === "true" || useWalletCoins === 1 || useWalletCoins === "1";
+        if (shouldApplyWallet && (lab.walletBalance || 0) > 0) {
+            coinsUsed = Math.min(Math.floor(lab.walletBalance), plan.price);
+        }
+
+        const payableAmount = Math.max(0, plan.price - coinsUsed);
+
+        if (payableAmount === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Full amount is covered by your wallet balance. Please use the Labo Wallet option to activate."
+            });
+        }
+
         const timestamp = Date.now().toString().slice(-8);
         const labIdShort = labId.toString().slice(-8);
         const receipt = `plan_${labIdShort}_${timestamp}`;
 
         const order = await getRazorpay().orders.create({
-            amount: plan.price * 100, // Amount in paise
+            amount: Math.round(payableAmount * 100), // Amount in paise
             currency: "INR",
             receipt: receipt,
-            notes: { labId: labId.toString(), planId: planId.toString() },
+            notes: {
+                labId: labId.toString(),
+                planId: planId.toString(),
+                coinsUsed: coinsUsed.toString(),
+                planPrice: plan.price.toString(),
+                payableAmount: payableAmount.toString()
+            },
         });
 
         res.status(200).json({
@@ -189,6 +216,8 @@ export const createPlanPurchaseOrder = async (req, res) => {
                 currency: order.currency,
                 keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_6kz5nGEzi8uXRw',
                 plan: { name: plan.name, price: plan.price },
+                coinsUsed: coinsUsed,
+                payableAmount: payableAmount
             },
         });
     } catch (error) {
@@ -201,7 +230,7 @@ export const createPlanPurchaseOrder = async (req, res) => {
 export const verifyPlanPurchase = async (req, res) => {
     try {
         const labId = req.user.id;
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planId } = req.body;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, planId, coinsUsed } = req.body;
 
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !planId) {
             return res.status(400).json({ success: false, message: "Missing payment details or planId" });
@@ -229,6 +258,34 @@ export const verifyPlanPurchase = async (req, res) => {
             return res.status(404).json({ success: false, message: "Lab not found" });
         }
 
+        // Determine coins to deduct safely
+        let finalCoinsUsed = 0;
+        try {
+            const razorpayOrder = await getRazorpay().orders.fetch(razorpay_order_id);
+            if (razorpayOrder && razorpayOrder.notes && razorpayOrder.notes.coinsUsed) {
+                finalCoinsUsed = Number(razorpayOrder.notes.coinsUsed) || 0;
+            }
+        } catch (e) {
+            finalCoinsUsed = Number(coinsUsed) || 0;
+        }
+
+        // Deduct wallet coins if used
+        if (finalCoinsUsed > 0) {
+            const coinsToDeduct = Math.min(lab.walletBalance || 0, finalCoinsUsed);
+            if (coinsToDeduct > 0) {
+                lab.walletBalance = Math.max(0, (lab.walletBalance || 0) - coinsToDeduct);
+
+                const WalletTransaction = (await import("../model/walletTransaction.model.js")).default;
+                await WalletTransaction.create({
+                    labId: lab._id,
+                    amount: coinsToDeduct,
+                    type: "debit",
+                    description: `Used ${coinsToDeduct} Labo Coins for purchasing plan: ${plan.name}`,
+                    status: "success"
+                });
+            }
+        }
+
         // Calculate expiry date based on plan duration (in days)
         const now = new Date();
         const expiryDate = new Date(now);
@@ -240,6 +297,13 @@ export const verifyPlanPurchase = async (req, res) => {
             purchaseDate: now,
             expiryDate: expiryDate,
             status: "active"
+        });
+
+        // Set previous active plans as expired
+        lab.purchasedPlans.forEach(p => {
+            if (p.planId.toString() !== plan._id.toString() && p.status === 'active') {
+                p.status = 'expired';
+            }
         });
 
         // Set subscription expiry on the lab record
@@ -254,7 +318,9 @@ export const verifyPlanPurchase = async (req, res) => {
                 plan: plan.name,
                 duration: plan.duration,
                 expiryDate: expiryDate,
-                isActive: true
+                isActive: true,
+                walletBalance: lab.walletBalance,
+                coinsUsed: finalCoinsUsed
             }
         });
     } catch (error) {
