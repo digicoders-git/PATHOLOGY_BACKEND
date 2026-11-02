@@ -21,6 +21,26 @@ const storage = multer.diskStorage({
     else if (file.fieldname === "testImage") subfolder = "tests";
     else if (file.fieldname === "offerImage") subfolder = "offers";
     else if (file.fieldname === "offerBadge" || file.fieldname === "offerBadgeImage") subfolder = "plans";
+    else if (file.fieldname === "thumbnail" || file.fieldname === "videoThumbnail") subfolder = "tutorials";
+    else if (
+      file.fieldname === "catalogueCover" ||
+      file.fieldname === "catalogueBanner" ||
+      file.fieldname === "catalogueFile" ||
+      file.fieldname === "cover" ||
+      (req.baseUrl && req.baseUrl.includes("catalogue")) ||
+      (req.originalUrl && req.originalUrl.includes("catalogue"))
+    ) subfolder = "catalogues";
+    else if (file.fieldname === "banner" || file.fieldname === "presentationBanner" || file.fieldname === "presentationFile") subfolder = "presentations";
+    else if (
+      file.fieldname === "mediaImage" ||
+      file.fieldname === "mediaBanner" ||
+      file.fieldname === "mediaFile" ||
+      file.fieldname === "image" ||
+      file.fieldname === "gallery" ||
+      file.fieldname === "galleryImages" ||
+      (req.baseUrl && req.baseUrl.includes("media")) ||
+      (req.originalUrl && req.originalUrl.includes("media"))
+    ) subfolder = "media";
 
     const folder = path.join(UPLOADS_ROOT, subfolder);
     if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });

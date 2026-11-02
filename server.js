@@ -24,6 +24,10 @@ import planRouter from './routes/plan.routes.js';
 import bookingRouter from './routes/booking.routes.js';
 import notificationRouter from './routes/notification.routes.js';
 import offerRouter from './routes/admin/offer.routes.js';
+import tutorialVideoRouter from './routes/tutorialVideo.routes.js';
+import presentationRouter from './routes/presentation.routes.js';
+import catalogueRouter from './routes/catalogue.routes.js';
+import mediaEventRouter from './routes/mediaEvent.routes.js';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -120,6 +124,13 @@ app.use('/booking', bookingRouter)
 app.use('/api/notifications', notificationRouter)
 app.use('/notifications', notificationRouter)
 app.use('/offers', offerRouter)
+app.use('/tutorials', tutorialVideoRouter);
+app.use('/tutorial-videos', tutorialVideoRouter);
+app.use('/presentations', presentationRouter);
+app.use('/catalogues', catalogueRouter);
+app.use('/api/catalogues', catalogueRouter);
+app.use('/media-events', mediaEventRouter);
+app.use('/media', mediaEventRouter);
 
 // 404 handler
 app.use((req, res) =>

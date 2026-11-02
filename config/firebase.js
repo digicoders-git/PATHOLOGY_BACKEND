@@ -1,7 +1,13 @@
 import admin from 'firebase-admin';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure .env is loaded regardless of process.cwd()
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 // Parse private key from environment variable
 const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
@@ -20,13 +26,19 @@ const serviceAccount = {
   universe_domain: 'googleapis.com'
 };
 
-// Initialize Firebase Admin SDK
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  projectId: process.env.FIREBASE_PROJECT_ID
-});
+// Initialize Firebase Admin SDK safely
+try {
+  if (!admin.apps.length && process.env.FIREBASE_PROJECT_ID) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      projectId: process.env.FIREBASE_PROJECT_ID
+    });
+  }
+} catch (err) {
+  console.warn('⚠️ Firebase Admin initialization warning:', err.message);
+}
 
-export const db = admin.firestore();
-export const messaging = admin.messaging();
+export const db = admin.apps.length ? admin.firestore() : null;
+export const messaging = admin.apps.length ? admin.messaging() : null;
 
 export default admin;
